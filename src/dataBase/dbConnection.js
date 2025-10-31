@@ -31,4 +31,4 @@ async function queryP(query, params = {}) {
   return result.recordset;
 }
 
-module.exports = { sql, queryP };
+module.exports = { sql, queryP, pool };

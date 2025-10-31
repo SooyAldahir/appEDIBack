@@ -12,8 +12,13 @@ exports.createFamilia = Joi.object({
   }),
   papa_id: Joi.number().integer().allow(null),
   mama_id: Joi.number().integer().allow(null),
-  descripcion: Joi.string().max(255).allow(null, ''), // si la quieres conservar
-}).options({ stripUnknown: true }); // <- importante, elimina extras y evita 400 por unknown
+  // --- NUEVA LÍNEA ---
+  // Aceptará un arreglo de números (IDs de los hijos)
+  hijos: Joi.array().items(Joi.number().integer()).optional(),
+  // -------------------
+  descripcion: Joi.string().max(255).allow(null, ''),
+}).options({ stripUnknown: true });
+
 exports.updateFamilia = Joi.object({
   nombre_familia: Joi.string().max(100),
   residencia: residenciaEnum,
