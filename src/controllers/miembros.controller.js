@@ -1,5 +1,5 @@
 // controllers/miembros.controller.js
-const { sql, queryP } = require('../dataBase/dbConnection');
+const { sql, queryP, pool } = require('../dataBase/dbConnection');
 const { ok, created, bad, fail } = require('../utils/http');
 
 async function add(req, res) {
@@ -41,18 +41,16 @@ async function remove(req, res) {
 }
 
 async function addBulk(req, res) {
-  const transaction = new sql.Transaction(pool);
+  const transaction = new sql.Transaction(pool); // <-- Ahora 'pool' está definido
   try {
     const { id_familia, id_usuarios } = req.body;
 
     await transaction.begin();
 
-    // Iteramos sobre cada ID de usuario y lo insertamos
     for (const id_usuario of id_usuarios) {
       const request = new sql.Request(transaction);
       request.input('id_familia', sql.Int, id_familia);
       request.input('id_usuario', sql.Int, id_usuario);
-      // Los alumnos asignados de esta forma siempre serán tipo 'HIJO'
       request.input('tipo_miembro', sql.NVarChar, 'HIJO');
       
       await request.query(`
@@ -62,11 +60,9 @@ async function addBulk(req, res) {
     }
 
     await transaction.commit();
-    
     ok(res, { message: `${id_usuarios.length} miembro(s) agregado(s) con éxito.` });
 
   } catch (e) {
-    // Si algo falla, revertimos todos los cambios
     if (transaction.rolledBack === false) {
       await transaction.rollback();
     }
