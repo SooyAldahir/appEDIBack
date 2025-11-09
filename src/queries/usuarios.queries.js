@@ -112,7 +112,14 @@ exports.Q = {
 
   list: `SELECT u.id_usuario,u.nombre,u.apellido,u.correo,u.tipo_usuario,u.matricula,u.num_empleado,u.estado,u.activo,r.nombre_rol
          FROM dbo.Usuarios u JOIN dbo.Roles r ON r.id_rol = u.id_rol`,
-  byId: `SELECT u.*, r.nombre_rol FROM dbo.Usuarios u JOIN dbo.Roles r ON r.id_rol = u.id_rol WHERE id_usuario = @id_usuario`,
+  byId: `
+    SELECT TOP 1 u.*, r.nombre_rol, f.nombre_familia
+    FROM dbo.Usuarios u
+    JOIN dbo.Roles r ON r.id_rol = u.id_rol
+    LEFT JOIN dbo.Miembros_Familia mf ON mf.id_usuario = u.id_usuario AND mf.activo = 1
+    LEFT JOIN dbo.Familias_EDI f ON f.id_familia = mf.id_familia AND f.activo = 1
+    WHERE u.id_usuario = @id_usuario
+  `,
   softDelete: `UPDATE dbo.Usuarios SET activo = 0, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
   setToken: `UPDATE dbo.Usuarios SET session_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
   clearToken: `UPDATE dbo.Usuarios SET session_token = NULL, updated_at = GETDATE() WHERE session_token = @token`

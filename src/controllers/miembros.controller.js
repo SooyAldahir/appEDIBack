@@ -51,7 +51,7 @@ async function addBulk(req, res) {
       const request = new sql.Request(transaction);
       request.input('id_familia', sql.Int, id_familia);
       request.input('id_usuario', sql.Int, id_usuario);
-      request.input('tipo_miembro', sql.NVarChar, 'HIJO');
+      request.input('tipo_miembro', sql.NVarChar, 'ALUMNO_ASIGNADO');
       
       await request.query(`
         INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro)

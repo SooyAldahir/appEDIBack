@@ -13,6 +13,7 @@ router.delete('/:id', auth, allow('Admin'), C.remove);
 // Lectura (⚠️ orden importa)
 router.get('/search', C.searchByName);
 router.get('/por-ident/:ident', C.byIdent);
+router.get('/reporte-completo', auth, allow('Admin'), C.reporteCompleto);
 router.get('/', C.list);
 router.get('/:id', C.get);
 

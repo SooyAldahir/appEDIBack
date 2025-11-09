@@ -114,7 +114,7 @@ exports.create = async (req, res) => {
       miembroRequest.input('id_familia', sql.Int, id_familia);
       miembroRequest.input('id_usuario', sql.Int, miembro.id_usuario);
       miembroRequest.input('tipo_miembro', sql.NVarChar, miembro.tipo);
-      await miembroRequest.query(M_Q.add); // Usando la query del archivo de queries
+      await miembroRequest.query(MiembrosQ.add); // Usando la query del archivo de queries
     }
 
     await transaction.commit();
@@ -177,4 +177,54 @@ exports.byIdent = async (req, res) => {
     });
     ok(res, rows);
   } catch (e) { fail(res, e); }
+};
+
+exports.reporteCompleto = async (_req, res) => {
+  try {
+    const rows = await queryP(Q.reporteCompleto);
+
+    // Agrupamos los resultados por familia
+    const familiasMap = new Map();
+
+    for (const row of rows) {
+      if (!familiasMap.has(row.id_familia)) {
+        familiasMap.set(row.id_familia, {
+          id_familia: row.id_familia,
+          nombre_familia: row.nombre_familia,
+          residencia: row.residencia,
+          papa_nombre: row.papa_nombre,
+          mama_nombre: row.mama_nombre,
+          hijos_en_casa: [],
+          alumnos_asignados: [],
+          total_miembros: 0
+        });
+      }
+
+      const familia = familiasMap.get(row.id_familia);
+
+      if (row.id_usuario) { // Si hay un miembro (hijo o alumno)
+        const miembroNombre = row.miembro_nombre;
+        
+        if (row.tipo_miembro === 'HIJO' && !familia.hijos_en_casa.includes(miembroNombre)) {
+          familia.hijos_en_casa.push(miembroNombre);
+        } else if (row.tipo_miembro === 'ALUMNO_ASIGNADO' && !familia.alumnos_asignados.includes(miembroNombre)) {
+          familia.alumnos_asignados.push(miembroNombre);
+        }
+      }
+    }
+    
+    // Contar miembros (Padres + Hijos + Alumnos)
+    familiasMap.forEach(familia => {
+       let count = 0;
+       if (familia.papa_nombre) count++;
+       if (familia.mama_nombre) count++;
+       count += familia.hijos_en_casa.length;
+       count += familia.alumnos_asignados.length;
+       familia.total_miembros = count;
+    });
+
+    ok(res, Array.from(familiasMap.values()));
+  } catch (e) {
+    fail(res, e);
+  }
 };

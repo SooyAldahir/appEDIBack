@@ -4,7 +4,19 @@ exports.Q = {
     OUTPUT INSERTED.* VALUES (@titulo, @descripcion, @fecha_evento, @hora_evento, @imagen, @estado_publicacion)
   `,
   list: `
-    SELECT * FROM dbo.Agenda_Actividades
+    SELECT 
+      id_actividad,
+      titulo,
+      descripcion,
+      fecha_evento,
+      -- Usamos CONVERT en lugar de FORMAT. Estilo 108 (HH:MM:SS) y lo cortamos a 5 chars (HH:MM)
+      CONVERT(varchar(5), hora_evento, 108) AS hora_evento,
+      imagen,
+      estado_publicacion,
+      fecha_creacion,
+      updated_at,
+      activo
+    FROM dbo.Agenda_Actividades
     WHERE (@estado IS NULL OR estado_publicacion = @estado)
       AND (@desde IS NULL OR fecha_evento >= @desde)
       AND (@hasta IS NULL OR fecha_evento <= @hasta)

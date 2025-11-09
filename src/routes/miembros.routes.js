@@ -20,6 +20,12 @@ router.post('/bulk',
   validate(addMiembrosBulk),
   C.addBulk
 );
+// Ruta para "eliminar" (soft delete) un miembro por su ID de relación
+router.delete('/:id',
+  auth,
+  allow('Admin'),
+  C.remove
+);
 
 // Ruta para listar miembros de una familia
 router.get('/familia/:id', C.byFamilia);

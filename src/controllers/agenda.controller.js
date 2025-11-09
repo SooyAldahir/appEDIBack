@@ -10,7 +10,7 @@ exports.create = async (req, res) => {
       titulo: { type: sql.NVarChar, value: titulo },
       descripcion: { type: sql.NVarChar, value: descripcion ?? null },
       fecha_evento: { type: sql.Date, value: fecha_evento },
-      hora_evento: { type: sql.Time, value: hora_evento ?? null },
+      hora_evento: { type: sql.NVarChar, value: hora_evento ?? null },
       imagen: { type: sql.NVarChar, value: imagen ?? null },
       estado_publicacion: { type: sql.NVarChar, value: estado_publicacion ?? 'Programada' }
     });
@@ -38,7 +38,7 @@ exports.update = async (req, res) => {
       titulo: { type: sql.NVarChar, value: titulo ?? null },
       descripcion: { type: sql.NVarChar, value: descripcion ?? null },
       fecha_evento: { type: sql.Date, value: fecha_evento ?? null },
-      hora_evento: { type: sql.Time, value: hora_evento ?? null },
+      hora_evento: { type: sql.NVarChar, value: hora_evento ?? null },
       imagen: { type: sql.NVarChar, value: imagen ?? null },
       estado_publicacion: { type: sql.NVarChar, value: estado_publicacion ?? null }
     });
