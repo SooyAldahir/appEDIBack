@@ -90,5 +90,13 @@ exports.Q = {
     LEFT JOIN dbo.Usuarios AS u ON u.id_usuario = miembros.id_usuario
     WHERE f.activo = 1
     ORDER BY f.nombre_familia
+  `,
+  updateFotos: `
+    UPDATE dbo.Familias_EDI SET
+      foto_portada_url = ISNULL(@foto_portada_url, foto_portada_url),
+      foto_perfil_url = ISNULL(@foto_perfil_url, foto_perfil_url),
+      updated_at = GETDATE()
+    OUTPUT INSERTED.id_familia, INSERTED.foto_portada_url, INSERTED.foto_perfil_url
+    WHERE id_familia = @id_familia
   `
 };

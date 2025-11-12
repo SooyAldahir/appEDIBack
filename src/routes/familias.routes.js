@@ -10,6 +10,12 @@ router.post('/',  auth, allow('Admin'), validate(createFamilia), C.create);
 router.put('/:id', auth, allow('Admin'), validate(updateFamilia), C.update);
 router.delete('/:id', auth, allow('Admin'), C.remove);
 
+router.patch('/:id/fotos',
+  auth,
+  allow('Admin'), // O puedes cambiarlo a allow('PapaEDI', 'MamaEDI') si quieres que ellos editen
+  C.uploadFotos
+);
+
 // Lectura (⚠️ orden importa)
 router.get('/search', C.searchByName);
 router.get('/por-ident/:ident', C.byIdent);

@@ -2,6 +2,7 @@ const { sql, pool, queryP } = require('../dataBase/dbConnection');
 const { ok, created, bad, notFound, fail } = require('../utils/http');
 const { Q } = require('../queries/familias.queries');
 const MiembrosQ = require('../queries/miembros.queries').Q;
+const path = require('path');
 
 // helper para inyectar el SELECT base con JOIN
 const withBase = (tpl) => tpl.replace('{{BASE}}', Q.base);
@@ -224,6 +225,51 @@ exports.reporteCompleto = async (_req, res) => {
     });
 
     ok(res, Array.from(familiasMap.values()));
+  } catch (e) {
+    fail(res, e);
+  }
+};
+
+const saveFile = (file, id_familia) => {
+  if (!file) return null;
+  
+  // 1. Crear un nombre de archivo único
+  const fileName = `familia-${id_familia}-${Date.now()}${path.extname(file.name)}`;
+  
+  // 2. Definir la ruta de guardado
+  // __dirname es /src/controllers, así que subimos un nivel a /src
+  // y luego a public/uploads
+  const savePath = path.join(__dirname, '..', 'public', 'uploads', fileName);
+
+  // 3. Mover el archivo
+  file.mv(savePath); // Mueve el archivo temporal a la carpeta 'public/uploads'
+  
+  // 4. Devolver la URL pública
+  // (Asumimos que la API está en la raíz, ej: http://localhost:3000)
+  return `/uploads/${fileName}`; 
+};
+
+exports.uploadFotos = async (req, res) => {
+  try {
+    const id_familia = Number(req.params.id);
+    if (!req.files) return bad(res, 'No se subió ningún archivo.');
+
+    // 1. Procesar y guardar los archivos (si existen)
+    const urlPortada = saveFile(req.files.foto_portada, id_familia);
+    const urlPerfil = saveFile(req.files.foto_perfil, id_familia);
+
+    if (!urlPortada && !urlPerfil) return bad(res, 'No se subieron archivos válidos.');
+
+    // 2. Actualizar la base de datos con las nuevas URLs
+    const rows = await queryP(Q.updateFotos, {
+      id_familia: { type: sql.Int, value: id_familia },
+      foto_portada_url: { type: sql.NVarChar, value: urlPortada },
+      foto_perfil_url: { type: sql.NVarChar, value: urlPerfil }
+    });
+
+    if (!rows.length) return notFound(res);
+    ok(res, rows[0]); // Devuelve la familia con las URLs actualizadas
+    
   } catch (e) {
     fail(res, e);
   }
