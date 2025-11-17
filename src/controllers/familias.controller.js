@@ -260,11 +260,16 @@ exports.uploadFotos = async (req, res) => {
 
     if (!urlPortada && !urlPerfil) return bad(res, 'No se subieron archivos válidos.');
 
-    // 2. Actualizar la base de datos con las nuevas URLs
-    const rows = await queryP(Q.updateFotos, {
+    // 2. (MODIFICADO) Actualizar la base de datos (ya no devuelve 'rows')
+    await queryP(Q.updateFotos, {
       id_familia: { type: sql.Int, value: id_familia },
       foto_portada_url: { type: sql.NVarChar, value: urlPortada },
       foto_perfil_url: { type: sql.NVarChar, value: urlPerfil }
+    });
+
+    // 3. (AÑADIDO) Obtener la familia con los datos actualizados
+    const rows = await queryP(withBase(Q.byId), {
+      id_familia: { type: sql.Int, value: id_familia },
     });
 
     if (!rows.length) return notFound(res);
@@ -273,20 +278,6 @@ exports.uploadFotos = async (req, res) => {
   } catch (e) {
     fail(res, e);
   }
-
-  const getFamiliaIdFromUser = async (pool, usuarioId) => {
-  if (!usuarioId) {
-    throw new Error("ID de usuario no proporcionado.");
-  }
-  
-  const [rows] = await pool.query(queries.getFamiliaByUsuarioId, [usuarioId]);
-  
-  if (rows.length === 0 || !rows[0].id_familia) {
-    throw new Error("El usuario no pertenece a ninguna familia.");
-  }
-  
-  return rows[0].id_familia;
-};
 
 // --- AÑADE LA NUEVA FUNCIÓN PARA SUBIR FOTO DE PERFIL ---
 exports.uploadFotoPerfil = async (req, res) => {
