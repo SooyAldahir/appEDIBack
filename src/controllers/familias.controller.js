@@ -273,4 +273,79 @@ exports.uploadFotos = async (req, res) => {
   } catch (e) {
     fail(res, e);
   }
+
+  const getFamiliaIdFromUser = async (pool, usuarioId) => {
+  if (!usuarioId) {
+    throw new Error("ID de usuario no proporcionado.");
+  }
+  
+  const [rows] = await pool.query(queries.getFamiliaByUsuarioId, [usuarioId]);
+  
+  if (rows.length === 0 || !rows[0].id_familia) {
+    throw new Error("El usuario no pertenece a ninguna familia.");
+  }
+  
+  return rows[0].id_familia;
+};
+
+// --- AÑADE LA NUEVA FUNCIÓN PARA SUBIR FOTO DE PERFIL ---
+exports.uploadFotoPerfil = async (req, res) => {
+  try {
+    if (!req.files || !req.files.foto) {
+      return res.status(400).json({ message: "No se ha subido ninguna foto." });
+    }
+
+    const usuarioId = req.user.id; // Del authGuard
+    const familiaId = await getFamiliaIdFromUser(pool, usuarioId);
+
+    if (!familiaId) {
+      return res.status(400).json({ message: "El usuario no pertenece a ninguna familia." });
+    }
+
+    const foto = req.files.foto;
+    // La URL es la ruta donde 'express-fileupload' guarda el archivo
+    // NOTA: Tu app.js debe estar configurado para guardar esto en 'uploads/'
+    const url = foto.path.replace(/\\/g, "/"); 
+
+    const result = await pool.query(queries.updateFotoPerfil, [url, familiaId]);
+
+    if (result[0].affectedRows === 0) {
+      return res.status(404).json({ message: "Familia no encontrada." });
+    }
+
+    res.json({ message: "Foto de perfil actualizada.", url });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: error.message || "Error interno del servidor." });
+  }
+};
+
+// --- AÑADE LA NUEVA FUNCIÓN PARA SUBIR FOTO DE PORTADA ---
+exports.uploadFotoPortada = async (req, res) => {
+  try {
+    if (!req.files || !req.files.foto) {
+      return res.status(400).json({ message: "No se ha subido ninguna foto." });
+    }
+
+    const usuarioId = req.user.id; // Del authGuard
+    const familiaId = await getFamiliaIdFromUser(pool, usuarioId);
+
+    if (!familiaId) {
+      return res.status(400).json({ message: "El usuario no pertenece a ninguna familia." });
+    }
+
+    const foto = req.files.foto;
+    const url = foto.path.replace(/\\/g, "/");
+
+    const result = await pool.query(queries.updateFotoPortada, [url, familiaId]);
+
+    if (result[0].affectedRows === 0) {
+      return res.status(404).json({ message: "Familia no encontrada." });
+    }
+
+    res.json({ message: "Foto de portada actualizada.", url });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: error.message || "Error interno del servidor." });
+  }}
 };

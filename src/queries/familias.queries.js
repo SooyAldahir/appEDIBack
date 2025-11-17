@@ -98,5 +98,7 @@ exports.Q = {
       updated_at = GETDATE()
     OUTPUT INSERTED.id_familia, INSERTED.foto_portada_url, INSERTED.foto_perfil_url
     WHERE id_familia = @id_familia
-  `
+  `,
+  updateFotoPerfil: "UPDATE familias SET foto_perfil = ? WHERE id = ?",
+  updateFotoPortada: "UPDATE familias SET foto_portada = ? WHERE id = ?"
 };

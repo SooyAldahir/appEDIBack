@@ -2,6 +2,7 @@ const { sql, queryP } = require('../dataBase/dbConnection');
 const { ok, created, bad, fail } = require('../utils/http');
 const { Q } = require('../queries/fotos.queries');
 
+
 exports.add = async (req, res) => {
   try {
     const { id_post, url_foto } = req.body;
