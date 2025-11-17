@@ -11,7 +11,7 @@ exports.Q = {
       f.direccion,
       f.foto_portada_url,  
       f.foto_perfil_url,
-      -- nombres completos (si existen)
+      f.descripcion, 
       (p.nombre + ' ' + p.apellido) AS papa_nombre,
       (m.nombre + ' ' + m.apellido) AS mama_nombre,
 
@@ -49,7 +49,8 @@ exports.Q = {
       residencia     = COALESCE(@residencia, residencia),
       direccion      = COALESCE(@direccion, direccion),
       papa_id        = COALESCE(@papa_id, papa_id),
-      mama_id        = COALESCE(@mama_id, mama_id)
+      mama_id        = COALESCE(@mama_id, mama_id),
+      descripcion    = COALESCE(@descripcion, descripcion)
     WHERE id_familia = @id_familia AND activo = 1;
 
     SELECT @@ROWCOUNT AS affected;

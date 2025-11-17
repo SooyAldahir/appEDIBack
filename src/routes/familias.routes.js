@@ -12,8 +12,14 @@ router.delete('/:id', auth, allow('Admin'), C.remove);
 
 router.patch('/:id/fotos',
   auth,
-  allow('Admin'), // O puedes cambiarlo a allow('PapaEDI', 'MamaEDI') si quieres que ellos editen
+  allow('Admin', 'PapaEDI', 'MamaEDI'), 
   C.uploadFotos
+);
+
+router.patch('/:id/descripcion',
+  auth,
+  allow('Admin', 'PapaEDI', 'MamaEDI'),  
+  C.updateDescripcion
 );
 
 // Lectura (⚠️ orden importa)

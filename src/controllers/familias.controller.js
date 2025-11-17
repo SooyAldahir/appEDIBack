@@ -354,3 +354,41 @@ exports.uploadFotoPortada = async (req, res) => {
     return res.status(500).json({ message: error.message || "Error interno del servidor." });
   }}
 ;
+
+exports.updateDescripcion = async (req, res) => {
+  try {
+    const id_familia = Number(req.params.id);
+    const { descripcion } = req.body;
+
+    if (!descripcion || descripcion.trim().length === 0) {
+      return bad(res, 'La descripción no puede estar vacía');
+    }
+
+    if (descripcion.length > 500) {
+      return bad(res, 'La descripción no puede exceder 500 caracteres');
+    }
+
+    // Actualizar en la base de datos
+    await queryP(Q.update, {
+      id_familia: { type: sql.Int, value: id_familia },
+      nombre_familia: { type: sql.NVarChar, value: null },
+      residencia: { type: sql.NVarChar, value: null },
+      direccion: { type: sql.NVarChar, value: null },
+      papa_id: { type: sql.Int, value: null },
+      mama_id: { type: sql.Int, value: null },
+      descripcion: { type: sql.NVarChar, value: descripcion.trim() }
+    });
+
+    // Devolver la familia actualizada
+    const rows = await queryP(withBase(Q.byId), {
+      id_familia: { type: sql.Int, value: id_familia },
+    });
+
+    if (!rows.length) return notFound(res);
+    
+    ok(res, rows[0]);
+  } catch (e) {
+    console.error('updateDescripcion error:', e);
+    fail(res, e);
+  }
+};
