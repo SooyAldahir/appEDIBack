@@ -230,54 +230,68 @@ exports.reporteCompleto = async (_req, res) => {
   }
 };
 
-const saveFile = (file, id_familia) => {
+const saveFile = (file, id_familia, tipo) => {
   if (!file) return null;
   
-  // 1. Crear un nombre de archivo único
-  const fileName = `familia-${id_familia}-${Date.now()}${path.extname(file.name)}`;
+  // 1. Extensión del archivo
+  const ext = path.extname(file.name);
   
-  // 2. Definir la ruta de guardado
-  // __dirname es /src/controllers, así que subimos un nivel a /src
-  // y luego a public/uploads
-  const savePath = path.join(__dirname, '..', 'public', 'uploads', fileName);
+  // 2. Nombre único: familia-{id}-{tipo}-{timestamp}.ext
+  const fileName = `familia-${id_familia}-${tipo}-${Date.now()}${ext}`;
+  
+  // 3. Ruta física donde se guardará
+  const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
+  const savePath = path.join(uploadDir, fileName);
 
-  // 3. Mover el archivo
-  file.mv(savePath); // Mueve el archivo temporal a la carpeta 'public/uploads'
+  // 4. Mover el archivo (express-fileupload lo hace síncronamente)
+  file.mv(savePath);
   
-  // 4. Devolver la URL pública
-  // (Asumimos que la API está en la raíz, ej: http://localhost:3000)
+  // 5. Retornar la URL pública relativa
   return `/uploads/${fileName}`; 
 };
 
 exports.uploadFotos = async (req, res) => {
   try {
     const id_familia = Number(req.params.id);
-    if (!req.files) return bad(res, 'No se subió ningún archivo.');
+    
+    if (!req.files) {
+      return bad(res, 'No se subió ningún archivo.');
+    }
 
-    // 1. Procesar y guardar los archivos (si existen)
-    const urlPortada = saveFile(req.files.foto_portada, id_familia);
-    const urlPerfil = saveFile(req.files.foto_perfil, id_familia);
+    // 1. Procesar archivos
+    const urlPortada = req.files.foto_portada 
+      ? saveFile(req.files.foto_portada, id_familia, 'portada')
+      : null;
+    
+    const urlPerfil = req.files.foto_perfil 
+      ? saveFile(req.files.foto_perfil, id_familia, 'perfil')
+      : null;
 
-    if (!urlPortada && !urlPerfil) return bad(res, 'No se subieron archivos válidos.');
+    if (!urlPortada && !urlPerfil) {
+      return bad(res, 'No se subieron archivos válidos.');
+    }
 
-    // 2. (MODIFICADO) Actualizar la base de datos (ya no devuelve 'rows')
+    // 2. Actualizar en la base de datos
     await queryP(Q.updateFotos, {
       id_familia: { type: sql.Int, value: id_familia },
       foto_portada_url: { type: sql.NVarChar, value: urlPortada },
       foto_perfil_url: { type: sql.NVarChar, value: urlPerfil }
     });
 
-    // 3. (AÑADIDO) Obtener la familia con los datos actualizados
+    // 3. Obtener la familia actualizada con las URLs
     const rows = await queryP(withBase(Q.byId), {
       id_familia: { type: sql.Int, value: id_familia },
     });
 
     if (!rows.length) return notFound(res);
-    ok(res, rows[0]); // Devuelve la familia con las URLs actualizadas
+    
+    ok(res, rows[0]);
     
   } catch (e) {
+    console.error('uploadFotos error:', e);
     fail(res, e);
   }
+};
 
 // --- AÑADE LA NUEVA FUNCIÓN PARA SUBIR FOTO DE PERFIL ---
 exports.uploadFotoPerfil = async (req, res) => {
@@ -339,4 +353,4 @@ exports.uploadFotoPortada = async (req, res) => {
     console.error(error);
     return res.status(500).json({ message: error.message || "Error interno del servidor." });
   }}
-};
+;

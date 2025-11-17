@@ -9,6 +9,8 @@ exports.Q = {
       f.papa_id,
       f.mama_id,
       f.direccion,
+      f.foto_portada_url,  
+      f.foto_perfil_url,
       -- nombres completos (si existen)
       (p.nombre + ' ' + p.apellido) AS papa_nombre,
       (m.nombre + ' ' + m.apellido) AS mama_nombre,
@@ -94,9 +96,10 @@ exports.Q = {
   updateFotos: `
   UPDATE dbo.Familias_EDI
   SET
-    foto_portada_url = ISNULL(@foto_portada_url, foto_portada_url),
-    foto_perfil_url = ISNULL(@foto_perfil_url, foto_perfil_url)
-  WHERE id_familia = @id_familia;
+    foto_portada_url = COALESCE(@foto_portada_url, foto_portada_url),
+    foto_perfil_url = COALESCE(@foto_perfil_url, foto_perfil_url),
+    updated_at = GETDATE()
+  WHERE id_familia = @id_familia AND activo = 1
 `,
   updateFotoPerfil: "UPDATE familias SET foto_perfil = ? WHERE id = ?",
   updateFotoPortada: "UPDATE familias SET foto_portada = ? WHERE id = ?"

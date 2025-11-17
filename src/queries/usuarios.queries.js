@@ -1,6 +1,36 @@
 exports.Q = {
   byLogin: `
-    SELECT TOP 1 u.*, r.nombre_rol
+    SELECT TOP 1 
+      u.id_usuario,
+      u.nombre,
+      u.apellido,
+      u.correo,
+      u.contrasena,
+      u.foto_perfil,
+      u.tipo_usuario,
+      u.matricula,
+      u.num_empleado,
+      u.id_rol,
+      u.estado,
+      u.activo,
+      u.created_at,
+      u.updated_at,
+      u.telefono,
+      u.residencia,
+      u.direccion,
+      u.fecha_nacimiento,
+      u.carrera,
+      u.session_token,
+      r.nombre_rol,
+      (SELECT TOP 1 mf.id_familia 
+       FROM dbo.Miembros_Familia mf
+       WHERE mf.id_usuario = u.id_usuario AND mf.activo = 1
+       ORDER BY mf.id_miembro DESC) AS id_familia,
+      (SELECT TOP 1 f.nombre_familia 
+       FROM dbo.Miembros_Familia mf
+       JOIN dbo.Familias_EDI f ON f.id_familia = mf.id_familia
+       WHERE mf.id_usuario = u.id_usuario AND mf.activo = 1 AND f.activo = 1
+       ORDER BY mf.id_miembro DESC) AS nombre_familia
     FROM dbo.Usuarios u
     JOIN dbo.Roles r ON r.id_rol = u.id_rol
     WHERE u.correo = @Login
