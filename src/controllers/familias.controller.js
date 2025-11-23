@@ -17,12 +17,18 @@ exports.list = async (_req, res) => {
 exports.get = async (req, res) => {
   try {
     const id_familia = Number(req.params.id);
+    console.log(`--- DEBUG: Iniciando C.get para id_familia: ${id_familia}`);
 
     // 1. Obtener los detalles base de la familia
     const rows = await queryP(withBase(Q.byId), {
       id_familia: { type: sql.Int, value: id_familia },
     });
-    if (!rows.length) return notFound(res);
+    console.log(`--- DEBUG: Query Q.byId ejecutada. Número de filas: ${rows.length}`);
+    if (!rows.length) {
+      // --- AÑADE ESTA LÍNEA ---
+      console.log(`--- DEBUG: No se encontraron filas. Devolviendo 404.`);
+      return notFound(res);
+    }
     
     const familia = rows[0];
 
