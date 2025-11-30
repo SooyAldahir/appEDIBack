@@ -18,7 +18,7 @@ module.exports = async function authGuard(req, res, next) {
       return next();
     }
 
-    // 🔒 Lógica real (como ya la tenías)
+    
     const hdr = req.headers.authorization || '';
     const token = hdr.startsWith('Bearer ') ? hdr.slice(7).trim() : null;
     if (!token) return res.status(401).json({ error: 'No autenticado' });
