@@ -143,11 +143,17 @@ exports.Q = {
   list: `SELECT u.id_usuario,u.nombre,u.apellido,u.correo,u.tipo_usuario,u.matricula,u.num_empleado,u.estado,u.activo,r.nombre_rol
          FROM dbo.Usuarios u JOIN dbo.Roles r ON r.id_rol = u.id_rol`,
   byId: `
-    SELECT TOP 1 u.*, r.nombre_rol, f.nombre_familia
+    SELECT TOP 1 
+      u.*, 
+      r.nombre_rol, 
+      f.nombre_familia,
+      CE.color as color_estado  -- <--- NUEVO CAMPO
     FROM dbo.Usuarios u
     JOIN dbo.Roles r ON r.id_rol = u.id_rol
     LEFT JOIN dbo.Miembros_Familia mf ON mf.id_usuario = u.id_usuario AND mf.activo = 1
     LEFT JOIN dbo.Familias_EDI f ON f.id_familia = mf.id_familia AND f.activo = 1
+    -- JOIN para buscar el color del estado actual (por nombre)
+    LEFT JOIN dbo.Cat_Estados CE ON CE.descripcion = u.estado 
     WHERE u.id_usuario = @id_usuario
   `,
   softDelete: `UPDATE dbo.Usuarios SET activo = 0, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
