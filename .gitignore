@@ -1,3 +1,4 @@
 node_modules
 .env
 src/public/uploads
+serviceAccountKey.json
