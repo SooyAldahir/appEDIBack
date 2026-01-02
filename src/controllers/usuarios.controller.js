@@ -3,6 +3,7 @@ const { createUserSchema, updateUserSchema } = require('../models/usuario.model'
 const { hashPassword } = require('../utils/hash');
 const { ok, created, bad, fail, notFound } = require('../utils/http');
 const UQ = require('../queries/usuarios.queries').Q;
+const { Q } = require('../queries/usuarios.queries');
 
 exports.create = async (req, res) => {
   try {
@@ -200,4 +201,28 @@ exports.updateEmail = async (req, res) => {
     if (!rows.length) return notFound(res);
     ok(res, rows[0]);
   } catch (e) { fail(res, e); }
+};
+
+
+exports.updateToken = async (req, res) => {
+    try {
+        const { id_usuario, session_token } = req.body;
+        console.log(`📡 Recibido token para Usuario ID ${id_usuario}:`);
+        console.log(session_token ? session_token.substring(0, 20) + "..." : "NULO");
+
+        if (!id_usuario || !session_token) {
+            return res.status(400).json({ msg: "Faltan datos (id_usuario o token)" });
+        }
+
+        const pool = await getConnection();
+        await pool.request()
+            .input('id_usuario', sql.Int, id_usuario)
+            .input('token', sql.VarChar, session_token)
+            .query(Q.setToken); // Usamos la query que ya tenías lista
+
+        res.json({ msg: "Token actualizado correctamente" });
+    } catch (error) {
+        console.error("Error actualizando token:", error);
+        res.status(500).json({ msg: "Error interno" });
+    }
 };

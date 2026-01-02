@@ -20,6 +20,10 @@ const dbConfig = {
 const pool = new sql.ConnectionPool(dbConfig);
 const poolConnect = pool.connect(); // inicia la conexión
 
+async function getConnection() {
+  await poolConnect; // Espera a que la conexión esté lista
+  return pool;
+}
 
 async function queryP(query, params = {}) {
   await poolConnect;
@@ -31,4 +35,4 @@ async function queryP(query, params = {}) {
   return result.recordset;
 }
 
-module.exports = { sql, queryP, pool };
+module.exports = { sql, queryP, pool, getConnection };

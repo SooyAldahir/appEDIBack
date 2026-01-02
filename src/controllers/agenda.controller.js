@@ -15,6 +15,17 @@ exports.create = async (req, res) => {
       estado_publicacion: { type: sql.NVarChar, value: estado_publicacion ?? 'Programada' }
     });
     created(res, rows[0]);
+    const pool = await getConnection();
+    const usuarios = await pool.request().query("SELECT fcm_token AS session_token FROM dbo.Usuarios WHERE session_token IS NOT NULL AND activo = 1");
+
+    usuarios.recordset.forEach(u => {
+        enviarNotificacion(
+            u.session_token, 
+            "Nueva Reunión 📅", 
+            `Se ha programado: ${titulo}`,
+            { tipo: 'REUNION', id: '0' } // ID 0 o el ID real del evento
+        );
+    });
   } catch (e) { fail(res, e); }
 };
 

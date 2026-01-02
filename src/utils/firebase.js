@@ -1,8 +1,4 @@
 const admin = require("firebase-admin");
-
-// Asegúrate de que la ruta al archivo sea correcta según donde lo guardaste
-// Si está en la raíz del proyecto (junto a package.json), usa: "../../serviceAccountKey.json"
-// Ajusta esto según tu estructura de carpetas real.
 const serviceAccount = require("../../serviceAccountKey.json"); 
 
 try {

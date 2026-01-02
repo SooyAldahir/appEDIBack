@@ -157,6 +157,22 @@ exports.Q = {
     WHERE u.id_usuario = @id_usuario
   `,
   softDelete: `UPDATE dbo.Usuarios SET activo = 0, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
-  setToken: `UPDATE dbo.Usuarios SET session_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
-  clearToken: `UPDATE dbo.Usuarios SET session_token = NULL, updated_at = GETDATE() WHERE session_token = @token`
+  setToken: `UPDATE dbo.Usuarios SET fcm_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
+  clearToken: `UPDATE dbo.Usuarios SET session_token = NULL, updated_at = GETDATE() WHERE session_token = @token`,
+  getTokensPadresPorFamilia: `
+    SELECT u.id_usuario, u.fcm_token AS session_token  -- <--- OJO AQUÍ: Lo apodamos 'session_token' para no cambiar todo el código del controlador
+    FROM dbo.Usuarios u
+    JOIN dbo.Miembros_Familia mf ON mf.id_usuario = u.id_usuario
+    JOIN dbo.Roles r ON r.id_rol = u.id_rol
+    WHERE mf.id_familia = @id_familia 
+      AND mf.activo = 1 
+      AND u.activo = 1
+      AND (r.nombre_rol IN ('Padre', 'Madre', 'Tutor', 'Admin', 'PapaEDI', 'MamaEDI'))
+      AND u.fcm_token IS NOT NULL  -- <--- Ahora validamos que tenga fcm_token
+  `,
+  
+  createNotificacion: `
+      INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia)
+      VALUES (@id_usuario_destino, @titulo, @cuerpo, @tipo, @id_referencia)
+  `
 };
