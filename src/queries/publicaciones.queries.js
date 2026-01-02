@@ -68,5 +68,12 @@ exports.Q = {
     SELECT * FROM dbo.Publicaciones WHERE id_post = @id_post;
   `,
   
-  softDelete: `UPDATE dbo.Publicaciones SET activo = 0, updated_at = GETDATE() WHERE id_post = @id_post`
+  softDelete: `UPDATE dbo.Publicaciones SET activo = 0, updated_at = GETDATE() WHERE id_post = @id_post`,
+  listByUsuario: `
+    SELECT p.*, u.nombre, u.apellido
+    FROM dbo.Publicaciones p
+    JOIN dbo.Usuarios u ON u.id_usuario = p.id_usuario
+    WHERE p.id_usuario = @id_usuario AND p.activo = 1
+    ORDER BY p.created_at DESC
+  `
 };

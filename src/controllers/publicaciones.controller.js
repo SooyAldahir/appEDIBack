@@ -6,18 +6,28 @@ const { enviarNotificacionPush } = require('../utils/firebase');
 
 exports.create = async (req, res) => {
   try {
-    const { id_familia, id_usuario, categoria_post, mensaje, tipo } = req.body; // Recibimos 'tipo' (POST o STORY)
+    const { id_familia, categoria_post, mensaje, tipo } = req.body; // Recibimos 'tipo' (POST o STORY)
     
     // ---------------------------------------------------------
     // 1. Manejo de Imagen (Igual que antes)
     // ---------------------------------------------------------
+    
     let url_imagen = null;
-    if (req.files && req.files.image) {
-      const archivo = req.files.image;
+
+    const id_usuario = req.user.id_usuario ?? req.user.id ?? req.user.userId;
+
+    if (req.files && req.files.imagen) {
+      const archivo = req.files.imagen; // 'imagen' es la llave que envía Flutter
       const extension = path.extname(archivo.name);
       const nombreArchivo = `${Date.now()}-${Math.round(Math.random() * 1E9)}${extension}`;
+      
+      // Ruta donde se guardará el archivo físico
       const uploadPath = path.join(__dirname, '../public/uploads', nombreArchivo);
+      
+      // Movemos el archivo a esa carpeta
       await archivo.mv(uploadPath);
+      
+      // Guardamos la URL pública para la BD
       url_imagen = `/uploads/${nombreArchivo}`;
     }
 
@@ -33,22 +43,27 @@ exports.create = async (req, res) => {
     const usuario = userRows[0];
     const rol = (usuario.nombre_rol || '').toString();
 
-    // Regla: Si el rol contiene "Hijo" o "Alumno" o "Estudiante", nace bloqueada.
-    const necesitaAprobacion = rol.includes('Hijo') || rol.includes('Alumno') || rol.includes('Estudiante');
+    // Definimos quiénes tienen "Pase VIP" para publicar sin permiso
+    const rolesAutoridad = ['Admin', 'PapaEDI', 'MamaEDI', 'Padre', 'Madre', 'Tutor'];
 
-    const estadoInicial = necesitaAprobacion ? 'Pendiente' : 'Publicado';
-    const tipoFinal = tipo || 'POST'; // Si no envían tipo, es un post normal
+    // Verificamos si el rol del usuario es una autoridad
+    const esAutoridad = rolesAutoridad.some(r => rol.includes(r));
+
+    // Si es autoridad -> 'Publicado'. Si no -> 'Pendiente'.
+    const estadoInicial = esAutoridad ? 'Publicado' : 'Pendiente';
+    
+    const tipoFinal = tipo || 'POST'; 
 
     // ---------------------------------------------------------
     // 3. Guardar en Base de Datos
     // ---------------------------------------------------------
     const rows = await queryP(Q.create, {
-      id_familia:     { type: sql.Int, value: id_familia ?? null },
+      id_familia:     { type: sql.Int, value: id_familia ? Number(id_familia) : null },
       id_usuario:     { type: sql.Int, value: id_usuario },
       categoria_post: { type: sql.NVarChar, value: categoria_post },
       mensaje:        { type: sql.NVarChar, value: mensaje ?? null },
       url_imagen:     { type: sql.NVarChar, value: url_imagen },
-      estado:         { type: sql.NVarChar, value: estadoInicial }, // <--- Aquí la magia
+      estado:         { type: sql.NVarChar, value: estadoInicial }, // <--- Usamos la nueva variable
       tipo:           { type: sql.NVarChar, value: tipoFinal }
     });
     

@@ -5,16 +5,16 @@ const { createPublicacion, setEstadoPublicacion } = require('../models/publicaci
 const authGuard = require('../middleware/authGuard'); 
 const roleGuard = require('../middleware/roleGuard');
 
+// 👇 MOVIDO AL PRINCIPIO: Definimos los roles ANTES de usarlos
 const ROLES_ACCESO_APP = [
   'Admin', 
   'PapaEDI', 
   'MamaEDI', 
   'HijoEDI', 
   'HijoSanguineo',
-  'Padre', 'Madre', 'Tutor', 'Hijo', 'ALUMNO', 'Estudiante' // <--- Agregamos roles comunes por si acaso
+  'Padre', 'Madre', 'Tutor', 'Hijo', 'ALUMNO', 'Estudiante'
 ];
 
-// 👇 CORRECCIÓN 1: Agregamos Padre, Madre y Tutor a los "Jueces"
 const ROLES_ADMIN = [
   'Admin',
   'PapaEDI', 
@@ -24,9 +24,10 @@ const ROLES_ADMIN = [
   'Tutor'
 ]; 
 
-
+// 👇 1. ESTA RUTA DEBE IR PRIMERO (Para que no se confunda con IDs)
 router.get('/mis-posts', authGuard, C.listByUsuario);
 
+// 👇 2. Ahora sí podemos usar ROLES_ACCESO_APP porque ya existe arriba
 router.post('/', authGuard, roleGuard(...ROLES_ACCESO_APP), validate(createPublicacion), C.create);
 
 router.get('/familia/:id_familia', C.listByFamilia);
@@ -37,7 +38,7 @@ router.put(
   '/:id/estado', 
   authGuard, 
   roleGuard(...ROLES_ADMIN), 
-  // validate(setEstadoPublicacion), // 👈 CORRECCIÓN 2: Comentamos esto para que acepte 'Publicado' sin dar error
+  // validate(setEstadoPublicacion), // Comentado para permitir estado 'Publicado'
   C.setEstado
 );
 
@@ -54,7 +55,5 @@ router.get(
   roleGuard(...ROLES_ADMIN), 
   C.listPendientes
 );
-
-
 
 module.exports = router;
