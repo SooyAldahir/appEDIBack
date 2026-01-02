@@ -20,6 +20,8 @@ app.use(fileUpload({
 }));
 // ---------------------------------
 
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+
 // --- 4. Servir la carpeta 'public' ---
 // Hace que http://tu-api.com/uploads/imagen.jpg funcione
 app.use(express.static(path.join(__dirname, 'public')));
