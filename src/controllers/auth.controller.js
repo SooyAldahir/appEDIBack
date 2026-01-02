@@ -19,7 +19,7 @@ exports.login = async (req, res) => {
     if (!okPass) return bad(res, 'Contraseña incorrecta');
 
     const token = newSessionToken();
-    await queryP(UQ.setToken, {
+    await queryP(UQ.updateSession, {
       token: { type: sql.NVarChar, value: token },
       id_usuario: { type: sql.Int, value: user.id_usuario }
     });

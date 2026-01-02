@@ -1,4 +1,4 @@
-const { sql, queryP } = require('../dataBase/dbConnection');
+const { sql, queryP, getConnection } = require('../dataBase/dbConnection');
 const { createUserSchema, updateUserSchema } = require('../models/usuario.model');
 const { hashPassword } = require('../utils/hash');
 const { ok, created, bad, fail, notFound } = require('../utils/http');
@@ -217,8 +217,8 @@ exports.updateToken = async (req, res) => {
         const pool = await getConnection();
         await pool.request()
             .input('id_usuario', sql.Int, id_usuario)
-            .input('token', sql.VarChar, session_token)
-            .query(Q.setToken); // Usamos la query que ya tenías lista
+            .input('token', sql.NVarChar, session_token)
+            .query(Q.updateFcm); // Usamos la query que ya tenías lista
 
         res.json({ msg: "Token actualizado correctamente" });
     } catch (error) {
