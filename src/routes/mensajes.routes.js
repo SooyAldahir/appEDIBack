@@ -1,9 +1,11 @@
 const router = require('express').Router();
 const C = require('../controllers/mensajes.controller');
-const validate = require('../utils/validate');
-const { sendMensaje } = require('../models/mensaje.model');
+// 👇 CORRECCIÓN SEGURA PARA AUTHGUARD
+const AuthMiddleware = require('../middleware/authGuard');
+const authGuard = AuthMiddleware.authGuard || AuthMiddleware;
 
-router.post('/', validate(sendMensaje), C.send);
-router.get('/familia/:id_familia', C.listByFamilia);
+// Rutas
+router.post('/', authGuard, C.create);
+router.get('/familia/:id_familia', authGuard, C.listByFamilia);
 
 module.exports = router;

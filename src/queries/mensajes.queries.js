@@ -1,13 +1,41 @@
 exports.Q = {
-  send: `
-    INSERT INTO dbo.Mensajes_Chat (id_familia, id_usuario, contenido)
-    OUTPUT INSERTED.* VALUES (@id_familia, @id_usuario, @contenido)
+  // CREATE: Insertamos el mensaje siempre con activo = 1 (visible)
+  create: `
+    INSERT INTO dbo.Mensajes_Chat (id_familia, id_usuario, contenido, activo)
+    VALUES (@id_familia, @id_usuario, @mensaje, 1);
+    
+    SELECT id_mensaje, contenido as mensaje, created_at, id_usuario 
+    FROM dbo.Mensajes_Chat 
+    WHERE id_mensaje = SCOPE_IDENTITY();
   `,
+
+  // LIST: Trae TODO el historial.
+  // 👇 CAMBIO IMPORTANTE: 
+  // 1. Usamos LEFT JOIN en Roles por si el usuario pierde el rol.
+  // 2. NO filtramos por 'u.activo'. Si el usuario existe, se muestra su mensaje.
   listByFamilia: `
-    SELECT m.*, u.nombre, u.apellido
+    SELECT m.id_mensaje, 
+           m.contenido as mensaje, 
+           m.created_at, 
+           m.id_usuario,
+           u.nombre, u.apellido, u.foto_perfil, 
+           ISNULL(r.nombre_rol, 'Usuario') as nombre_rol
     FROM dbo.Mensajes_Chat m
     JOIN dbo.Usuarios u ON u.id_usuario = m.id_usuario
-    WHERE m.id_familia = @id_familia AND m.activo = 1
-    ORDER BY m.fecha_envio DESC
+    LEFT JOIN dbo.Roles r ON r.id_rol = u.id_rol
+    WHERE m.id_familia = @id_familia 
+      AND m.activo = 1 -- Solo ocultamos si el MENSAJE fue borrado explícitamente
+    ORDER BY m.created_at ASC
+  `,
+
+  // TOKENS: Aquí SI filtramos activos, porque no queremos enviar notificaciones a gente bloqueada.
+  getFamilyTokens: `
+    SELECT u.fcm_token 
+    FROM dbo.Usuarios u
+    JOIN dbo.Miembros_Familia mf ON mf.id_usuario = u.id_usuario
+    WHERE mf.id_familia = @id_familia 
+      AND u.id_usuario != @id_sender 
+      AND u.activo = 1  -- Solo notificamos a los activos
+      AND u.fcm_token IS NOT NULL
   `
 };

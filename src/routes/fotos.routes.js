@@ -23,5 +23,6 @@ router.post(
 );
 
 router.get('/post/:id_post', C.listByPost);
+router.get('/familia/:id_familia', C.listByFamilia);
 
 module.exports = router;
