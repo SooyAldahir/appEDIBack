@@ -3,6 +3,7 @@ const { ok, created, bad, notFound, fail } = require('../utils/http');
 const { Q } = require('../queries/publicaciones.queries');
 const path = require('path');
 const { enviarNotificacionPush } = require('../utils/firebase'); 
+const { Q: AgendaQ } = require('../queries/agenda.queries');
 
 exports.create = async (req, res) => {
   try {
@@ -295,5 +296,24 @@ exports.deleteComentario = async (req, res) => {
 
     ok(res, { message: 'Comentario eliminado' });
 
+  } catch (e) { fail(res, e); }
+};
+
+exports.listGlobal = async (req, res) => {
+  try {
+    const idUsuarioActual = req.user.id_usuario ?? req.user.id;
+    
+    // A. Posts normales
+    const posts = await queryP(Q.listGlobal, { 
+        current_user_id: { type: sql.Int, value: idUsuarioActual } 
+    });
+
+    // B. Eventos Activos (Anclados)
+    const eventos = await queryP(AgendaQ.getActiveEvents);
+
+    // C. Combinar: Eventos primero + Posts después
+    const feed = [...(eventos || []), ...(posts || [])];
+    
+    ok(res, feed);
   } catch (e) { fail(res, e); }
 };

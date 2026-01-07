@@ -1,15 +1,20 @@
 exports.Q = {
+  // 1. MODIFICADO: Agregamos dias_anticipacion
   create: `
-    INSERT INTO dbo.Agenda_Actividades (titulo, descripcion, fecha_evento, hora_evento, imagen, estado_publicacion)
-    OUTPUT INSERTED.* VALUES (@titulo, @descripcion, @fecha_evento, @hora_evento, @imagen, @estado_publicacion)
+    INSERT INTO dbo.Agenda_Actividades (
+        titulo, descripcion, fecha_evento, hora_evento, imagen, estado_publicacion, dias_anticipacion
+    )
+    OUTPUT INSERTED.* VALUES (
+        @titulo, @descripcion, @fecha_evento, @hora_evento, @imagen, @estado_publicacion, @dias_anticipacion
+    );
   `,
+
   list: `
     SELECT 
       id_actividad,
       titulo,
       descripcion,
       fecha_evento,
-      -- Usamos CONVERT en lugar de FORMAT. Estilo 108 (HH:MM:SS) y lo cortamos a 5 chars (HH:MM)
       CONVERT(varchar(5), hora_evento, 108) AS hora_evento,
       imagen,
       estado_publicacion,
@@ -23,6 +28,7 @@ exports.Q = {
       AND activo = 1
     ORDER BY fecha_evento DESC, id_actividad DESC
   `,
+
   update: `
     UPDATE dbo.Agenda_Actividades SET
       titulo = ISNULL(@titulo,titulo),
@@ -34,5 +40,30 @@ exports.Q = {
       updated_at = GETDATE()
     OUTPUT INSERTED.* WHERE id_actividad = @id_actividad
   `,
-  remove: `UPDATE dbo.Agenda_Actividades SET activo = 0, updated_at = GETDATE() WHERE id_actividad = @id_actividad`
+
+  remove: `UPDATE dbo.Agenda_Actividades SET activo = 0, updated_at = GETDATE() WHERE id_actividad = @id_actividad`,
+
+  // 2. NUEVO: Para el Feed de Noticias
+  getActiveEvents: `
+    SELECT 
+        id_actividad as id_evento, 
+        titulo, 
+        descripcion as mensaje,
+        fecha_evento,
+        CONVERT(varchar(5), hora_evento, 108) AS hora_evento,
+        'EVENTO' as tipo,       
+        'Admin' as nombre_rol,
+        'Administración' as nombre,
+        NULL as foto_perfil,
+        0 as likes_count,
+        0 as comentarios_count,
+        0 as is_liked
+    FROM dbo.Agenda_Actividades
+    WHERE activo = 1
+      AND estado_publicacion = 'Publicada'
+      -- LÓGICA DE TIEMPO (Anticipación):
+      AND CAST(GETDATE() AS DATE) >= DATEADD(DAY, -dias_anticipacion, fecha_evento)
+      AND CAST(GETDATE() AS DATE) <= fecha_evento
+    ORDER BY fecha_evento ASC
+  `
 };

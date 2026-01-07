@@ -106,5 +106,20 @@ exports.Q = {
     JOIN dbo.Usuarios u ON u.id_usuario = c.id_usuario
     WHERE c.id_post = @id_post AND c.activo = 1
     ORDER BY c.created_at ASC
-  `
+  `,
+  listGlobal: `
+    SELECT 
+        p.*, 
+        u.nombre, u.apellido, u.foto_perfil,
+        f.nombre_familia,
+        (SELECT COUNT(*) FROM dbo.Publicaciones_Likes pl WHERE pl.id_post = p.id_post) as likes_count,
+        (SELECT COUNT(*) FROM dbo.Publicaciones_Comentarios pc WHERE pc.id_post = p.id_post AND pc.activo = 1) as comentarios_count,
+        CASE WHEN EXISTS (SELECT 1 FROM dbo.Publicaciones_Likes pl WHERE pl.id_post = p.id_post AND pl.id_usuario = @current_user_id) THEN 1 ELSE 0 END as is_liked
+    FROM dbo.Publicaciones p
+    JOIN dbo.Usuarios u ON u.id_usuario = p.id_usuario
+    LEFT JOIN dbo.Familias_EDI f ON f.id_familia = p.id_familia
+    WHERE p.activo = 1
+      AND (p.estado = 'Publicado' OR p.estado = 'Aprobada')
+    ORDER BY p.created_at DESC
+  `,
 };

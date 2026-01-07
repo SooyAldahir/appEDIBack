@@ -30,6 +30,8 @@ router.get('/mis-posts', authGuard, C.listByUsuario);
 // 👇 2. Ahora sí podemos usar ROLES_ACCESO_APP porque ya existe arriba
 router.post('/', authGuard, roleGuard(...ROLES_ACCESO_APP), validate(createPublicacion), C.create);
 
+router.get('/feed/global', authGuard, C.listGlobal);
+
 router.get('/familia/:id_familia', authGuard, C.listByFamilia);
 
 router.get('/institucional', authGuard, roleGuard(...ROLES_ACCESO_APP), C.listInstitucional);
