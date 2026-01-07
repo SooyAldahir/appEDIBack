@@ -30,7 +30,7 @@ router.get('/mis-posts', authGuard, C.listByUsuario);
 // 👇 2. Ahora sí podemos usar ROLES_ACCESO_APP porque ya existe arriba
 router.post('/', authGuard, roleGuard(...ROLES_ACCESO_APP), validate(createPublicacion), C.create);
 
-router.get('/familia/:id_familia', C.listByFamilia);
+router.get('/familia/:id_familia', authGuard, C.listByFamilia);
 
 router.get('/institucional', authGuard, roleGuard(...ROLES_ACCESO_APP), C.listInstitucional);
 
@@ -45,7 +45,6 @@ router.put(
 router.delete(
   '/:id', 
   authGuard, 
-  roleGuard(...ROLES_ADMIN), 
   C.remove
 );
 
@@ -55,5 +54,10 @@ router.get(
   roleGuard(...ROLES_ADMIN), 
   C.listPendientes
 );
+
+router.post('/:id/like', authGuard, C.toggleLike);
+router.get('/:id/comentarios', authGuard, C.getComentarios);
+router.post('/:id/comentarios', authGuard, C.addComentario);
+router.delete('/comentarios/:id', authGuard, C.deleteComentario);
 
 module.exports = router;

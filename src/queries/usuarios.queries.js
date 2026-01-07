@@ -147,6 +147,7 @@ exports.Q = {
       u.*, 
       r.nombre_rol, 
       f.nombre_familia,
+      f.id_familia,
       CE.color as color_estado  -- <--- NUEVO CAMPO
     FROM dbo.Usuarios u
     JOIN dbo.Roles r ON r.id_rol = u.id_rol

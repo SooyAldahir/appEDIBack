@@ -107,7 +107,12 @@ exports.create = async (req, res) => {
 // Solo asegúrate de copiar el resto del archivo original aquí abajo.
 exports.listByFamilia = async (req, res) => {
   try {
-    ok(res, await queryP(Q.listByFamilia, { id_familia: { type: sql.Int, value: Number(req.params.id_familia) } }));
+    const idUsuarioActual = req.user.id_usuario ?? req.user.id; // Del token
+    const rows = await queryP(Q.listByFamilia, { 
+        id_familia: { type: sql.Int, value: Number(req.params.id_familia) },
+        current_user_id: { type: sql.Int, value: idUsuarioActual } // <--- NUEVO PARAMETRO
+    });
+    ok(res, rows);
   } catch (e) { fail(res, e); }
 };
 
@@ -213,4 +218,82 @@ exports.listByUsuario = async (req, res) => {
     console.error("💥 Error en listByUsuario:", e);
     fail(res, e); 
   }
+};
+
+exports.toggleLike = async (req, res) => {
+    try {
+        const id_post = Number(req.params.id);
+        const id_usuario = req.user.id_usuario ?? req.user.id;
+        
+        const result = await queryP(Q.toggleLike, {
+            id_post: { type: sql.Int, value: id_post },
+            id_usuario: { type: sql.Int, value: id_usuario }
+        });
+        
+        ok(res, result[0]); // Devuelve { liked: 1 } o { liked: 0 }
+    } catch (e) { fail(res, e); }
+};
+
+exports.addComentario = async (req, res) => {
+    try {
+        const id_post = Number(req.params.id);
+        const id_usuario = req.user.id_usuario ?? req.user.id;
+        const { contenido } = req.body;
+
+        if (!contenido) return bad(res, 'Contenido requerido');
+
+        await queryP(Q.addComentario, {
+            id_post: { type: sql.Int, value: id_post },
+            id_usuario: { type: sql.Int, value: id_usuario },
+            contenido: { type: sql.NVarChar, value: contenido }
+        });
+
+        created(res, { message: 'Comentario agregado' });
+    } catch (e) { fail(res, e); }
+};
+
+exports.getComentarios = async (req, res) => {
+    try {
+        const id_post = Number(req.params.id);
+        const rows = await queryP(Q.getComentarios, {
+            id_post: { type: sql.Int, value: id_post }
+        });
+        ok(res, rows);
+    } catch (e) { fail(res, e); }
+};
+
+
+exports.deleteComentario = async (req, res) => {
+  try {
+    const idComentario = Number(req.params.id);
+    // El ID del usuario que quiere borrar
+    const idUsuarioSolicitante = req.user.id_usuario ?? req.user.id;
+
+    // 1. Verificar de quién es el comentario
+    const commentCheck = await queryP(
+      'SELECT id_usuario FROM Publicaciones_Comentarios WHERE id_comentario = @id', 
+      { id: { type: sql.Int, value: idComentario } }
+    );
+
+    if (!commentCheck.length) return notFound(res, 'Comentario no encontrado');
+
+    const idDueno = commentCheck[0].id_usuario;
+    
+    // Verificar si es Admin (para que pueda moderar)
+    const esAdmin = ['Admin', 'PapaEDI', 'MamaEDI'].some(r => (req.user.nombre_rol || req.user.rol || '').includes(r));
+
+    // 2. REGLA: Solo borra si es el dueño O es Admin
+    if (idDueno !== idUsuarioSolicitante && !esAdmin) {
+        return res.status(403).json({ message: 'No puedes borrar este comentario' });
+    }
+
+    // 3. Soft Delete
+    await queryP(
+      'UPDATE Publicaciones_Comentarios SET activo = 0 WHERE id_comentario = @id', 
+      { id: { type: sql.Int, value: idComentario } }
+    );
+
+    ok(res, { message: 'Comentario eliminado' });
+
+  } catch (e) { fail(res, e); }
 };
