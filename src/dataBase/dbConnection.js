@@ -1,6 +1,13 @@
 // src/dataBase/dbConnection.js
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 const sql = require('mssql');
+
+console.log("--- DEBUG VARIABLES DE ENTORNO ---");
+console.log("Usuario:", process.env.DBUSER);
+console.log("Password:", process.env.DBPASSWORD);
+console.log("Server:", process.env.DBSERVER);
+console.log("--------------------------------");
 
 // Config pool único compartido
 const dbConfig = {
@@ -12,8 +19,8 @@ const dbConfig = {
   pool: { max: 10, min: 0, idleTimeoutMillis: 60000 },
   options: {
     encrypt: false,                        
-    trustServerCertificate: true          
-    // enableArithAbort: true               
+    trustServerCertificate: true,
+    enableArithAbort: true               
   }
 };
 
