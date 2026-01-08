@@ -32,7 +32,49 @@ exports.create = async (req, res) => {
     };
 
     const rows = await queryP(UQ.insert, params);
-    const user = rows[0]; delete user.contrasena;
+    const user = rows[0]; 
+    delete user.contrasena;
+
+    // 👇👇👇 INICIO: LÓGICA AUTO-CHAT PADRES 👇👇👇
+    try {
+        // Obtenemos el ID del usuario recién creado
+        // Nota: Asegúrate que tu query UQ.insert devuelve 'id_usuario' (OUTPUT INSERTED.id_usuario)
+        const newUserId = user.id_usuario || user.IdUsuario; 
+
+        if (newUserId) {
+            const autoChatQuery = `
+                -- 1. Obtenemos el nombre del rol basado en el ID que nos enviaron
+                DECLARE @RoleName nvarchar(50) = (SELECT nombre_rol FROM dbo.Roles WHERE id_rol = @idRol);
+
+                -- 2. Lista de roles permitidos en el chat grupal
+                -- (Usamos una variable tabla temporal o comparacion directa)
+                IF @RoleName IN ('Padre', 'Madre', 'Tutor', 'PapaEDI', 'MamaEDI')
+                BEGIN
+                    -- 3. Buscamos la sala general
+                    DECLARE @IdSala int = (SELECT TOP 1 id_sala FROM dbo.Chat_Salas WHERE nombre = 'Comunidad de Padres');
+
+                    -- 4. Si existe la sala, lo agregamos
+                    IF @IdSala IS NOT NULL
+                    BEGIN
+                        INSERT INTO dbo.Chat_Participantes (id_sala, id_usuario, es_admin)
+                        VALUES (@IdSala, @idUsuario, 0); -- 0 = Miembro normal
+                    END
+                END
+            `;
+
+            await queryP(autoChatQuery, {
+                idRol: { type: sql.Int, value: value.id_rol },
+                idUsuario: { type: sql.Int, value: newUserId }
+            });
+            console.log(`✅ Verificación de chat completada para usuario ${newUserId}`);
+        }
+    } catch (chatError) {
+        // Importante: Usamos un try-catch anidado para que, si falla el chat,
+        // NO falle la creación del usuario. Solo lo registramos en consola.
+        console.error("⚠️ Error agregando usuario al chat automático:", chatError);
+    }
+   
+
     created(res, user);
   } catch (e) {
     fail(res, e);

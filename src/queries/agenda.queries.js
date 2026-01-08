@@ -31,19 +31,25 @@ exports.Q = {
 
   update: `
     UPDATE dbo.Agenda_Actividades SET
-      titulo = ISNULL(@titulo,titulo),
-      descripcion = ISNULL(@descripcion,descripcion),
-      fecha_evento = ISNULL(@fecha_evento,fecha_evento),
-      hora_evento = @hora_evento,
-      imagen = @imagen,
-      estado_publicacion = ISNULL(@estado_publicacion,estado_publicacion),
-      updated_at = GETDATE()
+      titulo             = ISNULL(NULLIF(@titulo, ''), titulo),
+      descripcion        = ISNULL(NULLIF(@descripcion, ''), descripcion),
+      fecha_evento       = ISNULL(@fecha_evento, fecha_evento),
+      hora_evento        = @hora_evento,
+      imagen             = @imagen,
+      
+      estado_publicacion = CASE 
+                              WHEN @estado_publicacion IS NULL OR LEN(@estado_publicacion) = 0 THEN estado_publicacion 
+                              ELSE @estado_publicacion 
+                           END,
+
+      dias_anticipacion  = ISNULL(@dias_anticipacion, dias_anticipacion),
+      updated_at         = GETDATE()
     OUTPUT INSERTED.* WHERE id_actividad = @id_actividad
   `,
 
   remove: `UPDATE dbo.Agenda_Actividades SET activo = 0, updated_at = GETDATE() WHERE id_actividad = @id_actividad`,
 
-  // 2. NUEVO: Para el Feed de Noticias
+  // ... (Tu consulta getActiveEvents) ...
   getActiveEvents: `
     SELECT 
         id_actividad as id_evento, 
@@ -51,6 +57,7 @@ exports.Q = {
         descripcion as mensaje,
         fecha_evento,
         CONVERT(varchar(5), hora_evento, 108) AS hora_evento,
+        dias_anticipacion,
         'EVENTO' as tipo,       
         'Admin' as nombre_rol,
         'Administración' as nombre,
@@ -61,7 +68,6 @@ exports.Q = {
     FROM dbo.Agenda_Actividades
     WHERE activo = 1
       AND estado_publicacion = 'Publicada'
-      -- LÓGICA DE TIEMPO (Anticipación):
       AND CAST(GETDATE() AS DATE) >= DATEADD(DAY, -dias_anticipacion, fecha_evento)
       AND CAST(GETDATE() AS DATE) <= fecha_evento
     ORDER BY fecha_evento ASC

@@ -75,24 +75,40 @@ exports.list = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { titulo, descripcion, fecha_evento, hora_evento, imagen, estado_publicacion } = req.body;
+    const { 
+        titulo, descripcion, fecha_evento, hora_evento, imagen, estado_publicacion,
+        dias_anticipacion 
+    } = req.body;
+
+    console.log("📝 Update ID:", id, "Estado recibido:", estado_publicacion); // Debug
+
     const rows = await queryP(Q.update, {
-      id_actividad: { type: sql.Int, value: id },
-      titulo: { type: sql.NVarChar, value: titulo ?? null },
-      descripcion: { type: sql.NVarChar, value: descripcion ?? null },
-      fecha_evento: { type: sql.Date, value: fecha_evento ?? null },
-      hora_evento: { type: sql.NVarChar, value: hora_evento ?? null },
-      imagen: { type: sql.NVarChar, value: imagen ?? null },
-      estado_publicacion: { type: sql.NVarChar, value: estado_publicacion ?? null }
+      id_actividad:       { type: sql.Int,      value: id },
+      titulo:             { type: sql.NVarChar, value: titulo },
+      descripcion:        { type: sql.NVarChar, value: descripcion },
+      fecha_evento:       { type: sql.Date,     value: fecha_evento },
+      hora_evento:        { type: sql.NVarChar, value: hora_evento ?? null },
+      imagen:             { type: sql.NVarChar, value: imagen ?? null },
+      
+      // Forzamos NULL si viene undefined
+      estado_publicacion: { type: sql.NVarChar, value: estado_publicacion ?? null },
+      
+      dias_anticipacion:  { type: sql.Int,      value: dias_anticipacion ?? null }
     });
-    if (!rows.length) return notFound(res);
+
+    if (!rows || !rows.length) return notFound(res, 'No se pudo actualizar');
     ok(res, rows[0]);
-  } catch (e) { fail(res, e); }
+
+  } catch (e) { 
+    console.error(e);
+    fail(res, e); 
+  }
 };
 
 exports.remove = async (req, res) => {
   try {
-    await queryP(Q.remove, { id_actividad: { type: sql.Int, value: Number(req.params.id) } });
-    ok(res, { message: 'Actividad eliminada' });
+    const id = Number(req.params.id);
+    await queryP(Q.remove, { id_actividad: { type: sql.Int, value: id } });
+    ok(res, { message: 'Evento eliminado' });
   } catch (e) { fail(res, e); }
 };
