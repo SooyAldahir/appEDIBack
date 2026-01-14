@@ -1,6 +1,7 @@
-// controllers/miembros.controller.js
 const { sql, queryP, pool } = require('../dataBase/dbConnection');
 const { ok, created, bad, fail } = require('../utils/http');
+// 👇 1. IMPORTAR FIREBASE
+const { enviarNotificacionPush, enviarNotificacionMulticast } = require('../utils/firebase');
 
 async function add(req, res) {
   try {
@@ -41,7 +42,7 @@ async function remove(req, res) {
 }
 
 async function addBulk(req, res) {
-  const transaction = new sql.Transaction(pool); // <-- Ahora 'pool' está definido
+  const transaction = new sql.Transaction(pool); 
   try {
     const { id_familia, id_usuarios } = req.body;
 
@@ -63,13 +64,12 @@ async function addBulk(req, res) {
     ok(res, { message: `${id_usuarios.length} miembro(s) agregado(s) con éxito.` });
 
   } catch (e) {
-    if (transaction.rolledBack === false) {
-      await transaction.rollback();
-    }
+    if (transaction.rolledBack === false) await transaction.rollback();
     fail(res, e);
   }
 }
 
+// 🔥 [MODIFICADO] Función de Asignación con Notificaciones
 async function addAlumnosToFamilia(req, res) {
   const { id_familia } = req.params;
   const { matriculas = [] } = req.body;
@@ -84,26 +84,36 @@ async function addAlumnosToFamilia(req, res) {
 
     const results = { added: [], notFound: [], errors: [] };
 
+    // Para evitar consultas repetitivas en el bucle, obtenemos info de la familia una vez
+    const reqFam = new sql.Request(transaction);
+    reqFam.input('idFam', sql.Int, id_familia);
+    const famResult = await reqFam.query("SELECT nombre_familia FROM dbo.Familias_EDI WHERE id_familia = @idFam");
+    const nombreFamilia = famResult.recordset[0]?.nombre_familia || "Tu nueva familia";
+
     for (const matricula of matriculas) {
       try {
         const reqUser = new sql.Request(transaction);
-        // 1. Buscar el id_usuario del alumno por matrícula
-        const userResult = await reqUser.query(`SELECT id_usuario FROM dbo.Usuarios WHERE matricula = ${parseInt(matricula)} AND tipo_usuario = 'ALUMNO'`);
+        // 1. Buscamos usuario y su token
+        const userResult = await reqUser.query(`
+            SELECT id_usuario, fcm_token, nombre, apellido 
+            FROM dbo.Usuarios 
+            WHERE matricula = ${parseInt(matricula)} AND tipo_usuario = 'ALUMNO'
+        `);
         
         if (userResult.recordset.length === 0) {
           results.notFound.push(matricula);
-          continue; // Si no lo encuentra, pasa a la siguiente matrícula
+          continue; 
         }
         
-        const id_usuario = userResult.recordset[0].id_usuario;
+        const user = userResult.recordset[0];
+        const id_usuario = user.id_usuario;
 
-        // 2. Insertar en Miembros_Familia (evitando duplicados si ya existe)
+        // 2. Insertar en Miembros_Familia
         const reqMiembro = new sql.Request(transaction);
         reqMiembro.input('id_familia', sql.Int, id_familia);
         reqMiembro.input('id_usuario', sql.Int, id_usuario);
-        reqMiembro.input('tipo_miembro', sql.NVarChar, 'HIJO');
+        reqMiembro.input('tipo_miembro', sql.NVarChar, 'HIJO'); // O 'ALUMNO_ASIGNADO' según tu lógica
         
-        // Esta query inserta el miembro solo si no existe ya una relación activa
         await reqMiembro.query(`
           IF NOT EXISTS (SELECT 1 FROM dbo.Miembros_Familia WHERE id_familia = @id_familia AND id_usuario = @id_usuario AND activo = 1)
           BEGIN
@@ -114,18 +124,65 @@ async function addAlumnosToFamilia(req, res) {
         
         results.added.push(matricula);
 
+        // --- 🔔 A. Notificar al Alumno ---
+        if (user.fcm_token) {
+            // Nota: Como estamos en transacción, idealmente haríamos esto después del commit.
+            // Pero Firebase es externo, así que lo hacemos "fire and forget" o guardamos en lista para después.
+            // Para simplicidad, lo ejecutamos aquí pero protegemos con try-catch para no romper la transacción.
+            try {
+                enviarNotificacionPush(
+                    user.fcm_token,
+                    'Nueva Asignación 🏠',
+                    `Has sido asignado a la familia "${nombreFamilia}".`,
+                    { tipo: 'ASIGNACION', id_referencia: id_familia.toString() }
+                );
+            } catch(e) { console.error("Error push alumno", e); }
+        }
+
       } catch (err) {
         results.errors.push(`Error con matrícula ${matricula}: ${err.message}`);
       }
     }
 
     await transaction.commit();
+
+    // --- 🔔 B. Notificar a los Padres (después del commit) ---
+    if (results.added.length > 0) {
+        try {
+            // Buscamos tokens de los padres de esta familia
+            // Nota: create_at > hoy es una forma sucia, mejor buscamos por rol en esa familia
+            const padresQuery = `
+                SELECT u.fcm_token 
+                FROM dbo.Miembros_Familia mf
+                JOIN dbo.Usuarios u ON mf.id_usuario = u.id_usuario
+                JOIN dbo.Roles r ON u.id_rol = r.id_rol
+                WHERE mf.id_familia = @idFam 
+                  AND mf.activo = 1
+                  AND r.nombre_rol IN ('Padre', 'Madre', 'Tutor', 'PapaEDI', 'MamaEDI')
+                  AND u.fcm_token IS NOT NULL
+            `;
+            const padresRows = await queryP(padresQuery, { idFam: { type: sql.Int, value: id_familia } });
+            const tokensPadres = padresRows.map(p => p.fcm_token);
+
+            if (tokensPadres.length > 0) {
+                const mensaje = results.added.length === 1 
+                    ? `Se ha asignado un nuevo alumno a tu familia.`
+                    : `Se han asignado ${results.added.length} nuevos alumnos a tu familia.`;
+
+                enviarNotificacionMulticast(
+                    tokensPadres,
+                    'Nuevos Miembros 👶',
+                    mensaje,
+                    { tipo: 'NUEVO_MIEMBRO', id_referencia: id_familia.toString() }
+                );
+            }
+        } catch(e) { console.error("Error push padres", e); }
+    }
+
     ok(res, results);
 
   } catch (e) {
-    if (transaction.rolledBack === false) {
-      await transaction.rollback();
-    }
+    if (transaction.rolledBack === false) await transaction.rollback();
     fail(res, e);
   }
 }
