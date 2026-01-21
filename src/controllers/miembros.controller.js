@@ -1,6 +1,5 @@
 const { sql, queryP, pool } = require('../dataBase/dbConnection');
 const { ok, created, bad, fail } = require('../utils/http');
-// 👇 1. IMPORTAR FIREBASE
 const { enviarNotificacionPush, enviarNotificacionMulticast } = require('../utils/firebase');
 
 async function add(req, res) {
@@ -35,56 +34,50 @@ async function remove(req, res) {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) return bad(res, 'id inválido');
-    await queryP(`UPDATE dbo.Miembros_Familia SET activo = 0 WHERE id_miembro = @id`,
+    
+    // Eliminación física (Hard Delete) para permitir reasignación
+    await queryP(`DELETE FROM dbo.Miembros_Familia WHERE id_miembro = @id`,
       { id: { type: sql.Int, value: id }});
-    ok(res, { message: 'Miembro desactivado' });
+    ok(res, { message: 'Miembro eliminado permanentemente de la familia' });
   } catch (e) { fail(res, e); }
 }
 
 async function addBulk(req, res) {
+  // Lógica simple sin notificaciones (opcional)
   const transaction = new sql.Transaction(pool); 
   try {
     const { id_familia, id_usuarios } = req.body;
-
     await transaction.begin();
-
     for (const id_usuario of id_usuarios) {
       const request = new sql.Request(transaction);
       request.input('id_familia', sql.Int, id_familia);
       request.input('id_usuario', sql.Int, id_usuario);
       request.input('tipo_miembro', sql.NVarChar, 'ALUMNO_ASIGNADO');
-      
-      await request.query(`
-        INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro)
-        VALUES (@id_familia, @id_usuario, @tipo_miembro)
-      `);
+      await request.query(`INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro) VALUES (@id_familia, @id_usuario, @tipo_miembro)`);
     }
-
     await transaction.commit();
     ok(res, { message: `${id_usuarios.length} miembro(s) agregado(s) con éxito.` });
-
   } catch (e) {
     if (transaction.rolledBack === false) await transaction.rollback();
     fail(res, e);
   }
 }
 
-// 🔥 [MODIFICADO] Función de Asignación con Notificaciones
+// 🔥 [CORREGIDO] Guarda en BD + Envía Push
 async function addAlumnosToFamilia(req, res) {
   const { id_familia } = req.params;
   const { matriculas = [] } = req.body;
 
   if (!Array.isArray(matriculas) || matriculas.length === 0) {
-    return bad(res, 'Se requiere un arreglo de matrículas en el cuerpo de la petición.');
+    return bad(res, 'Se requiere un arreglo de matrículas.');
   }
 
   const transaction = new sql.Transaction(pool);
   try {
     await transaction.begin();
-
     const results = { added: [], notFound: [], errors: [] };
 
-    // Para evitar consultas repetitivas en el bucle, obtenemos info de la familia una vez
+    // 1. Info de Familia
     const reqFam = new sql.Request(transaction);
     reqFam.input('idFam', sql.Int, id_familia);
     const famResult = await reqFam.query("SELECT nombre_familia FROM dbo.Familias_EDI WHERE id_familia = @idFam");
@@ -93,10 +86,9 @@ async function addAlumnosToFamilia(req, res) {
     for (const matricula of matriculas) {
       try {
         const reqUser = new sql.Request(transaction);
-        // 1. Buscamos usuario y su token
+        // Buscar Alumno
         const userResult = await reqUser.query(`
-            SELECT id_usuario, fcm_token, nombre, apellido 
-            FROM dbo.Usuarios 
+            SELECT id_usuario, fcm_token FROM dbo.Usuarios 
             WHERE matricula = ${parseInt(matricula)} AND tipo_usuario = 'ALUMNO'
         `);
         
@@ -108,34 +100,44 @@ async function addAlumnosToFamilia(req, res) {
         const user = userResult.recordset[0];
         const id_usuario = user.id_usuario;
 
-        // 2. Insertar en Miembros_Familia
+        // Insertar Miembro
         const reqMiembro = new sql.Request(transaction);
         reqMiembro.input('id_familia', sql.Int, id_familia);
         reqMiembro.input('id_usuario', sql.Int, id_usuario);
-        reqMiembro.input('tipo_miembro', sql.NVarChar, 'HIJO'); // O 'ALUMNO_ASIGNADO' según tu lógica
+        reqMiembro.input('tipo_miembro', sql.NVarChar, 'HIJO'); 
         
         await reqMiembro.query(`
-          IF NOT EXISTS (SELECT 1 FROM dbo.Miembros_Familia WHERE id_familia = @id_familia AND id_usuario = @id_usuario AND activo = 1)
+          IF NOT EXISTS (SELECT 1 FROM dbo.Miembros_Familia WHERE id_familia = @id_familia AND id_usuario = @id_usuario)
           BEGIN
-            INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro)
-            VALUES (@id_familia, @id_usuario, @tipo_miembro)
+            INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
+            VALUES (@id_familia, @id_usuario, @tipo_miembro, 1, SYSDATETIME())
           END
         `);
         
         results.added.push(matricula);
 
-        // --- 🔔 A. Notificar al Alumno ---
+        // --- 🔔 A. Notificación para el ALUMNO ---
+        const tituloAlumno = 'Nueva Asignación 🏠';
+        const mensajeAlumno = `Has sido asignado a la familia "${nombreFamilia}".`;
+
+        // 1. Guardar en BD (Importante para que salga en la lista)
+        const reqNotifAlumno = new sql.Request(transaction);
+        reqNotifAlumno.input('uid', sql.Int, id_usuario);
+        reqNotifAlumno.input('tit', sql.NVarChar, tituloAlumno);
+        reqNotifAlumno.input('msg', sql.NVarChar, mensajeAlumno);
+        reqNotifAlumno.input('type', sql.NVarChar, 'ASIGNACION');
+        reqNotifAlumno.input('ref', sql.NVarChar, id_familia.toString());
+
+        await reqNotifAlumno.query(`
+          INSERT INTO dbo.Notificaciones (id_usuario, titulo, mensaje, tipo, id_referencia, leido, created_at)
+          VALUES (@uid, @tit, @msg, @type, @ref, 0, SYSDATETIME())
+        `);
+
+        // 2. Enviar Push (Si tiene token)
         if (user.fcm_token) {
-            // Nota: Como estamos en transacción, idealmente haríamos esto después del commit.
-            // Pero Firebase es externo, así que lo hacemos "fire and forget" o guardamos en lista para después.
-            // Para simplicidad, lo ejecutamos aquí pero protegemos con try-catch para no romper la transacción.
             try {
-                enviarNotificacionPush(
-                    user.fcm_token,
-                    'Nueva Asignación 🏠',
-                    `Has sido asignado a la familia "${nombreFamilia}".`,
-                    { tipo: 'ASIGNACION', id_referencia: id_familia.toString() }
-                );
+                // Ejecutamos fuera de la transacción crítica o en background
+                enviarNotificacionPush(user.fcm_token, tituloAlumno, mensajeAlumno, { tipo: 'ASIGNACION', id_referencia: id_familia.toString() });
             } catch(e) { console.error("Error push alumno", e); }
         }
 
@@ -144,37 +146,60 @@ async function addAlumnosToFamilia(req, res) {
       }
     }
 
-    await transaction.commit();
+    await transaction.commit(); // ✅ COMMIT DE LA TRANSACCIÓN
 
-    // --- 🔔 B. Notificar a los Padres (después del commit) ---
+    // --- 🔔 B. Notificación para los PADRES ---
+    // (Esto lo hacemos después del commit para no bloquear)
     if (results.added.length > 0) {
         try {
-            // Buscamos tokens de los padres de esta familia
-            // Nota: create_at > hoy es una forma sucia, mejor buscamos por rol en esa familia
-            const padresQuery = `
-                SELECT u.fcm_token 
+            // Buscamos Padres (Tokens + IDs)
+            const padresResult = await queryP(`
+                SELECT u.id_usuario, u.fcm_token 
                 FROM dbo.Miembros_Familia mf
                 JOIN dbo.Usuarios u ON mf.id_usuario = u.id_usuario
                 JOIN dbo.Roles r ON u.id_rol = r.id_rol
                 WHERE mf.id_familia = @idFam 
                   AND mf.activo = 1
                   AND r.nombre_rol IN ('Padre', 'Madre', 'Tutor', 'PapaEDI', 'MamaEDI')
-                  AND u.fcm_token IS NOT NULL
-            `;
-            const padresRows = await queryP(padresQuery, { idFam: { type: sql.Int, value: id_familia } });
-            const tokensPadres = padresRows.map(p => p.fcm_token);
+            `, { idFam: { type: sql.Int, value: id_familia } });
 
-            if (tokensPadres.length > 0) {
-                const mensaje = results.added.length === 1 
+            const padres = padresResult; 
+            if (padres.length > 0) {
+                const tituloPadres = 'Nuevos Miembros 👶';
+                const mensajePadres = results.added.length === 1 
                     ? `Se ha asignado un nuevo alumno a tu familia.`
                     : `Se han asignado ${results.added.length} nuevos alumnos a tu familia.`;
 
-                enviarNotificacionMulticast(
-                    tokensPadres,
-                    'Nuevos Miembros 👶',
-                    mensaje,
-                    { tipo: 'NUEVO_MIEMBRO', id_referencia: id_familia.toString() }
-                );
+                const tokensPadres = [];
+
+                // Recorremos padres para guardar en BD uno por uno
+                for (const padre of padres) {
+                    await queryP(`
+                        INSERT INTO dbo.Notificaciones (id_usuario, titulo, mensaje, tipo, id_referencia, leido, created_at)
+                        VALUES (@uid, @tit, @msg, @type, @ref, 0, SYSDATETIME())
+                    `, {
+                        uid: { type: sql.Int, value: padre.id_usuario },
+                        tit: { type: sql.NVarChar, value: tituloPadres },
+                        msg: { type: sql.NVarChar, value: mensajePadres },
+                        type: { type: sql.NVarChar, value: 'NUEVO_MIEMBRO' },
+                        ref: { type: sql.NVarChar, value: id_familia.toString() }
+                    });
+
+                    if (padre.fcm_token && padre.fcm_token.length > 10) {
+                        tokensPadres.push(padre.fcm_token);
+                    }
+                }
+
+                // Enviar Push Masivo
+                if (tokensPadres.length > 0) {
+                    const uniqueTokens = [...new Set(tokensPadres)];
+                    await enviarNotificacionMulticast(
+                        uniqueTokens,
+                        tituloPadres,
+                        mensajePadres,
+                        { tipo: 'NUEVO_MIEMBRO', id_referencia: id_familia.toString() }
+                    );
+                }
             }
         } catch(e) { console.error("Error push padres", e); }
     }
