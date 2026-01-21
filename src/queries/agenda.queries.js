@@ -35,13 +35,8 @@ exports.Q = {
       descripcion        = ISNULL(NULLIF(@descripcion, ''), descripcion),
       fecha_evento       = ISNULL(@fecha_evento, fecha_evento),
       hora_evento        = @hora_evento,
-      imagen             = @imagen,
-      
-      estado_publicacion = CASE 
-                              WHEN @estado_publicacion IS NULL OR LEN(@estado_publicacion) = 0 THEN estado_publicacion 
-                              ELSE @estado_publicacion 
-                           END,
-
+      imagen             = ISNULL(@imagen, imagen), 
+      estado_publicacion = ISNULL(@estado_publicacion, estado_publicacion),
       dias_anticipacion  = ISNULL(@dias_anticipacion, dias_anticipacion),
       updated_at         = GETDATE()
     OUTPUT INSERTED.* WHERE id_actividad = @id_actividad

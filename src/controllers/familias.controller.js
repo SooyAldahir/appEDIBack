@@ -73,12 +73,13 @@ exports.create = async (req, res) => {
   const transaction = new sql.Transaction(pool);
   try {
     const { nombre_familia, papa_id, mama_id, residencia, direccion, hijos = [] } = req.body;
-    if (!nombre_familia || !residencia) return bad(res, 'nombre_familia y residencia requeridos');
+    
+    if (!nombre_familia || !residencia) return bad(res, 'Faltan datos obligatorios');
 
     await transaction.begin();
     const request = new sql.Request(transaction);
 
-    // 1. Insertar la familia y obtener su ID
+    // 1. Insertar Familia
     request.input('nombre_familia', sql.NVarChar, nombre_familia);
     request.input('residencia', sql.NVarChar, residencia);
     request.input('direccion', sql.NVarChar, direccion ?? null);
@@ -91,70 +92,90 @@ exports.create = async (req, res) => {
       VALUES (@nombre_familia, @residencia, @direccion, @papa_id, @mama_id);
     `);
 
-    if (!familiaResult.recordset[0] || !familiaResult.recordset[0].id_familia) {
-      throw new Error('No se pudo crear la familia o obtener el ID.');
-    }
     const id_familia = familiaResult.recordset[0].id_familia;
 
-    // 2. Insertar miembros (Padre, Madre, Hijos)
+    // 2. Insertar Miembros
     const miembrosAIngresar = [];
-    if (papa_id) miembrosAIngresar.push({ id_usuario: papa_id, tipo: 'PADRE' });
-    if (mama_id) miembrosAIngresar.push({ id_usuario: mama_id, tipo: 'MADRE' });
-    if (hijos && hijos.length > 0) {
-      hijos.forEach(hijo_id => miembrosAIngresar.push({ id_usuario: hijo_id, tipo: 'HIJO' }));
+    if (papa_id) miembrosAIngresar.push({ id: papa_id, tipo: 'PADRE' });
+    if (mama_id) miembrosAIngresar.push({ id: mama_id, tipo: 'MADRE' });
+    if (Array.isArray(hijos)) {
+        hijos.forEach(hID => miembrosAIngresar.push({ id: hID, tipo: 'HIJO' }));
     }
 
     for (const miembro of miembrosAIngresar) {
-      const miembroRequest = new sql.Request(transaction);
-      miembroRequest.input('id_familia', sql.Int, id_familia);
-      miembroRequest.input('id_usuario', sql.Int, miembro.id_usuario);
-      miembroRequest.input('tipo_miembro', sql.NVarChar, miembro.tipo);
-      await miembroRequest.query(MiembrosQ.add); 
+      const mReq = new sql.Request(transaction);
+      mReq.input('id_familia', sql.Int, id_familia);
+      mReq.input('id_usuario', sql.Int, miembro.id);
+      mReq.input('tipo', sql.NVarChar, miembro.tipo);
+      await mReq.query(`
+        INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
+        VALUES (@id_familia, @id_usuario, @tipo, 1, SYSDATETIME())
+      `);
     }
 
-    await transaction.commit(); // ✅ Confirmamos la transacción
+    await transaction.commit(); 
 
-    // 👇 2. AQUÍ AGREGAMOS LA LÓGICA DE NOTIFICACIÓN
+    // 🔔 NOTIFICACIONES (Ahora con los nombres CORRECTOS de tu tabla)
     try {
-        const idsPadres = [];
-        if (papa_id) idsPadres.push(papa_id);
-        if (mama_id) idsPadres.push(mama_id);
-
+        // A. Padres (Familia Creada)
+        const idsPadres = [papa_id, mama_id].filter(id => id);
         if (idsPadres.length > 0) {
-            // Buscamos los tokens de los padres usando una query directa
-            const tokensResult = await queryP(`
-                SELECT fcm_token FROM dbo.Usuarios 
-                WHERE id_usuario IN (${idsPadres.join(',')}) 
-                AND fcm_token IS NOT NULL AND LEN(fcm_token) > 10
-            `);
-            
-            const tokens = tokensResult.map(r => r.fcm_token);
-            
-            if (tokens.length > 0) {
-                console.log(`🔔 Notificando a ${tokens.length} padres sobre nueva familia...`);
-                await enviarNotificacionMulticast(
-                    tokens,
-                    '¡Familia Creada! 🏠',
-                    `Bienvenidos a la familia "${nombre_familia}".`,
-                    { tipo: 'FAMILIA_CREADA', id_referencia: id_familia.toString() }
-                );
+            const padresData = await queryP(`SELECT id_usuario, fcm_token FROM dbo.Usuarios WHERE id_usuario IN (${idsPadres.join(',')})`);
+            const tokensPadres = [];
+
+            for (const p of padresData) {
+                // CORRECCIÓN: Usamos id_usuario_destino, cuerpo, fecha_creacion
+                await queryP(`
+                    INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
+                    VALUES (@uid, @tit, @body, @tipo, @ref, 0, GETDATE())
+                `, {
+                    uid: { type: sql.Int, value: p.id_usuario },
+                    tit: { type: sql.NVarChar, value: '¡Familia Creada! 🏠' },
+                    body: { type: sql.NVarChar, value: `Bienvenidos a la familia "${nombre_familia}".` },
+                    tipo: { type: sql.NVarChar, value: 'FAMILIA_CREADA' },
+                    ref: { type: sql.Int, value: id_familia }
+                }).catch(e => console.error("Error BD Notif Padre:", e.message));
+
+                if (p.fcm_token) tokensPadres.push(p.fcm_token);
+            }
+
+            if (tokensPadres.length > 0) {
+                enviarNotificacionMulticast(tokensPadres, '¡Familia Creada! 🏠', `Bienvenidos a la familia "${nombre_familia}".`, 
+                { tipo: 'FAMILIA_CREADA', id_familia: id_familia.toString() });
             }
         }
-    } catch (notifError) {
-        console.error("⚠️ Error enviando notificación de familia:", notifError);
-    }
-    // ----------------------------------------------------
 
-    const finalRows = await queryP(withBase(Q.byId), {
-      id_familia: { type: sql.Int, value: id_familia },
-    });
+        // B. Hijos (Asignación)
+        if (hijos.length > 0) {
+            const hijosData = await queryP(`SELECT id_usuario, fcm_token FROM dbo.Usuarios WHERE id_usuario IN (${hijos.join(',')})`);
+            const tokensHijos = [];
 
-    return created(res, finalRows[0]);
+            for (const h of hijosData) {
+                await queryP(`
+                    INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
+                    VALUES (@uid, @tit, @body, @tipo, @ref, 0, GETDATE())
+                `, {
+                    uid: { type: sql.Int, value: h.id_usuario },
+                    tit: { type: sql.NVarChar, value: 'Nueva Asignación 🎒' },
+                    body: { type: sql.NVarChar, value: `Has sido asignado a la familia "${nombre_familia}".` },
+                    tipo: { type: sql.NVarChar, value: 'ASIGNACION' },
+                    ref: { type: sql.Int, value: id_familia }
+                }).catch(e => console.error("Error BD Notif Hijo:", e.message));
 
+                if (h.fcm_token) tokensHijos.push(h.fcm_token);
+            }
+
+            if (tokensHijos.length > 0) {
+                enviarNotificacionMulticast(tokensHijos, 'Nueva Asignación 🎒', `Has sido asignado a la familia "${nombre_familia}".`, 
+                { tipo: 'ASIGNACION', id_familia: id_familia.toString() });
+            }
+        }
+    } catch (notifError) { console.error("Error general notificaciones:", notifError); }
+
+    const finalRows = await queryP(withBase(Q.byId), { id_familia: { type: sql.Int, value: id_familia } });
+    created(res, finalRows[0]);
   } catch (e) {
-    if (transaction.rolledBack === false) {
-      await transaction.rollback();
-    }
+    if (transaction.rolledBack === false) await transaction.rollback();
     fail(res, e);
   }
 };

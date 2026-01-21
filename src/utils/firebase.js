@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const serviceAccount = require("../../../serviceAccountKey.json"); // Ajusta la ruta si es necesario
+const serviceAccount = require("../../../serviceAccountKey.json");
 
 try {
   if (!admin.apps.length) {
@@ -9,11 +9,27 @@ try {
     console.log("🔥 Firebase Admin inicializado correctamente.");
   }
 } catch (error) {
-  console.error("❌ Error inicializando Firebase:", error);
+  console.error("❌ Error inicializando Firebase:", error.message);
 }
 
-// 1. Enviar a UN dispositivo (Funciona con la API HTTP v1 actual)
-const enviarNotificacionPush = async (tokenDispositivo, titulo, cuerpo, data) => {
+// --- HELPER IMPORTANTE ---
+// Convierte cualquier dato que envíes a String (Firebase falla si envías números directos en 'data')
+const formatData = (data) => {
+  const formatted = {};
+  if (data) {
+    Object.keys(data).forEach(key => {
+      // Si el valor existe, lo convertimos a texto. Si es null, enviamos cadena vacía.
+      formatted[key] = data[key] != null ? data[key].toString() : '';
+    });
+  }
+  // Valores por defecto para que Flutter siempre sepa qué hacer
+  if (!formatted.click_action) formatted.click_action = 'FLUTTER_NOTIFICATION_CLICK';
+  if (!formatted.tipo) formatted.tipo = 'GENERAL';
+  return formatted;
+};
+
+// 1. Enviar a UN dispositivo (Ej: Chat privado, Asignación de alumno)
+const enviarNotificacionPush = async (tokenDispositivo, titulo, cuerpo, data = {}) => {
   if (!tokenDispositivo) return;
   
   try {
@@ -23,42 +39,42 @@ const enviarNotificacionPush = async (tokenDispositivo, titulo, cuerpo, data) =>
         title: titulo,
         body: cuerpo,
       },
-      data: {
-        tipo: data.tipo || 'GENERAL',
-        id_referencia: data.id ? data.id.toString() : '0',
-        click_action: 'FLUTTER_NOTIFICATION_CLICK' 
-      }, 
+      // 👇 Aquí está la magia: pasamos tus datos (id_familia, etc) formateados
+      data: formatData(data), 
     });
     // console.log(`Push enviado a ${tokenDispositivo.substring(0, 10)}...`);
   } catch (error) {
-    console.error("❌ Error Push Individual:", error);
+    console.error("❌ Error Push Individual:", error.message);
   }
 };
 
-// 2. Enviar a VARIOS dispositivos (Chat grupal)
-// CORRECCIÓN: Usamos sendEachForMulticast en lugar de sendMulticast
-const enviarNotificacionMulticast = async (tokens, titulo, cuerpo, data) => {
+// 2. Enviar a VARIOS dispositivos (Ej: Chat grupal, Nueva Familia creada)
+const enviarNotificacionMulticast = async (tokens, titulo, cuerpo, data = {}) => {
   if (!tokens || tokens.length === 0) return;
   
+  // Limpieza de tokens duplicados o vacíos
+  const uniqueTokens = [...new Set(tokens)].filter(t => t && t.length > 10);
+  if (uniqueTokens.length === 0) return;
+
   try {
     const message = {
       notification: { title: titulo, body: cuerpo },
-      data: {
-        tipo: data.tipo || 'GENERAL',
-        id_sala: data.id_sala ? data.id_sala.toString() : '0',
-        click_action: 'FLUTTER_NOTIFICATION_CLICK' 
-      },
-      tokens: tokens, // Array de tokens
+      data: formatData(data), // 👇 Usamos el mismo formateador universal
+      tokens: uniqueTokens,
     };
 
-    // 👇👇 AQUÍ ESTÁ EL CAMBIO IMPORTANTE 👇👇
+    // Usamos sendEachForMulticast que es la versión moderna y estable
     const response = await admin.messaging().sendEachForMulticast(message);
     
-    console.log(`📡 Push Grupal enviado: ${response.successCount} éxitos, ${response.failureCount} fallos.`);
+    console.log(`📡 Push Grupal: ${response.successCount} enviados, ${response.failureCount} fallos.`);
     
-    // (Opcional) Aquí podrías limpiar tokens que dieron error si quisieras
+    if (response.failureCount > 0) {
+       // Opcional: ver por qué fallaron algunos
+       const firstError = response.responses.find(r => !r.success);
+       console.log("   Ejemplo de error:", firstError?.error?.message);
+    }
   } catch (error) {
-    console.error("❌ Error Push Multicast:", error);
+    console.error("❌ Error Push Multicast:", error.message);
   }
 };
 
