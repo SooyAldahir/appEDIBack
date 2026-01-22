@@ -53,6 +53,7 @@ exports.Q = {
         fecha_evento,
         CONVERT(varchar(5), hora_evento, 108) AS hora_evento,
         dias_anticipacion,
+        imagen,  -- 👈 ¡ESTA LÍNEA FALTABA! Sin esto, la app no recibe la foto.
         'EVENTO' as tipo,       
         'Admin' as nombre_rol,
         'Administración' as nombre,

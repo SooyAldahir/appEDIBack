@@ -259,3 +259,13 @@ exports.updateToken = async (req, res) => {
         res.status(500).json({ msg: "Error interno" });
     }
 };
+
+exports.getBirthdays = async (req, res) => {
+  try {
+    // Usamos la query que acabamos de crear
+    const rows = await queryP(Q.birthdaysToday);
+    ok(res, rows);
+  } catch (e) {
+    fail(res, e);
+  }
+};

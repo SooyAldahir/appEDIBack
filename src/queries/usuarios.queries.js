@@ -178,5 +178,17 @@ exports.Q = {
   createNotificacion: `
       INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia)
       VALUES (@id_usuario_destino, @titulo, @cuerpo, @tipo, @id_referencia)
-  `
+  `,
+  birthdaysToday: `
+    SELECT 
+      id_usuario, 
+      nombre, 
+      apellido, 
+      url_foto_perfil, 
+      fecha_nacimiento 
+    FROM dbo.Usuarios 
+    WHERE DAY(fecha_nacimiento) = DAY(GETDATE()) 
+    AND MONTH(fecha_nacimiento) = MONTH(GETDATE()) 
+    AND activo = 1
+  `,
 };

@@ -1,10 +1,12 @@
 require('dotenv').config();
 const app = require('./app');
 const { queryP } = require('./dataBase/dbConnection');
+const { initCronJobs } = require('./services/birthday.service');
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, '0.0.0.0', async () => {
+  initCronJobs();
   try {
     await queryP('SELECT 1 AS up');
     
