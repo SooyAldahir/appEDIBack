@@ -12,10 +12,7 @@ exports.createFamilia = Joi.object({
   }),
   papa_id: Joi.number().integer().allow(null),
   mama_id: Joi.number().integer().allow(null),
-  // --- NUEVA LÍNEA ---
-  // Aceptará un arreglo de números (IDs de los hijos)
   hijos: Joi.array().items(Joi.number().integer()).optional(),
-  // -------------------
   descripcion: Joi.string().max(255).allow(null, ''),
 }).options({ stripUnknown: true });
 

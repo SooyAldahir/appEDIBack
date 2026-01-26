@@ -7,81 +7,52 @@ const { Q: AgendaQ } = require('../queries/agenda.queries');
 
 exports.create = async (req, res) => {
   try {
-    const { id_familia, categoria_post, mensaje, tipo } = req.body; // Recibimos 'tipo' (POST o STORY)
-    
-    // ---------------------------------------------------------
-    // 1. Manejo de Imagen (Igual que antes)
-    // ---------------------------------------------------------
+    const { id_familia, categoria_post, mensaje, tipo } = req.body; 
     
     let url_imagen = null;
 
     const id_usuario = req.user.id_usuario ?? req.user.id ?? req.user.userId;
 
     if (req.files && req.files.imagen) {
-      const archivo = req.files.imagen; // 'imagen' es la llave que envía Flutter
+      const archivo = req.files.imagen; 
       const extension = path.extname(archivo.name);
       const nombreArchivo = `${Date.now()}-${Math.round(Math.random() * 1E9)}${extension}`;
-      
-      // Ruta donde se guardará el archivo físico
       const uploadPath = path.join(__dirname, '../public/uploads', nombreArchivo);
-      
-      // Movemos el archivo a esa carpeta
+    
       await archivo.mv(uploadPath);
-      
-      // Guardamos la URL pública para la BD
+    
       url_imagen = `/uploads/${nombreArchivo}`;
     }
 
     if (!id_usuario || !categoria_post) return bad(res, 'Faltan datos requeridos');
 
-    // ---------------------------------------------------------
-    // 2. "EL FILTRO": Determinar si necesita aprobación
-    // ---------------------------------------------------------
-    // Consultamos el rol del usuario que está publicando
     const userRows = await queryP(Q.getUserRole, { id_usuario: { type: sql.Int, value: id_usuario }});
     if (!userRows.length) return bad(res, 'Usuario no encontrado');
     
     const usuario = userRows[0];
     const rol = (usuario.nombre_rol || '').toString();
-
-    // Definimos quiénes tienen "Pase VIP" para publicar sin permiso
     const rolesAutoridad = ['Admin', 'PapaEDI', 'MamaEDI', 'Padre', 'Madre', 'Tutor'];
-
-    // Verificamos si el rol del usuario es una autoridad
     const esAutoridad = rolesAutoridad.some(r => rol.includes(r));
-
-    // Si es autoridad -> 'Publicado'. Si no -> 'Pendiente'.
     const estadoInicial = esAutoridad ? 'Publicado' : 'Pendiente';
-    
     const tipoFinal = tipo || 'POST'; 
-
-    // ---------------------------------------------------------
-    // 3. Guardar en Base de Datos
-    // ---------------------------------------------------------
     const rows = await queryP(Q.create, {
       id_familia:     { type: sql.Int, value: id_familia ? Number(id_familia) : null },
       id_usuario:     { type: sql.Int, value: id_usuario },
       categoria_post: { type: sql.NVarChar, value: categoria_post },
       mensaje:        { type: sql.NVarChar, value: mensaje ?? null },
       url_imagen:     { type: sql.NVarChar, value: url_imagen },
-      estado:         { type: sql.NVarChar, value: estadoInicial }, // <--- Usamos la nueva variable
+      estado:         { type: sql.NVarChar, value: estadoInicial }, 
       tipo:           { type: sql.NVarChar, value: tipoFinal }
     });
     
     const post = rows[0];
-
-    // ---------------------------------------------------------
-    // 4. Notificar a los Padres (Si quedó pendiente)
-    // ---------------------------------------------------------
     if (estadoInicial === 'Pendiente' && id_familia) {
         console.log(`🔒 Publicación pendiente creada por ${usuario.nombre}. Notificando padres...`);
-        
-        // Buscamos los tokens de los padres de esa familia
+      
         const padres = await queryP(Q.getTokensPadres, { id_familia: { type: sql.Int, value: id_familia }});
         
         for (const padre of padres) {
             if (padre.fcm_token) {
-                // Enviamos la alerta
                 await enviarNotificacionPush(
                     padre.fcm_token,
                     'Solicitud de Publicación 📝',
@@ -94,7 +65,7 @@ exports.create = async (req, res) => {
             }
         }
     } else {
-        console.log(`✅ Publicación creada directamente por ${rol} (${usuario.nombre})`);
+        console.log(`Publicación creada directamente por ${rol} (${usuario.nombre})`);
     }
 
     created(res, post);
@@ -104,14 +75,12 @@ exports.create = async (req, res) => {
   }
 };
 
-// ... Tus otras funciones (listByFamilia, setEstado, etc.) déjalas igual ...
-// Solo asegúrate de copiar el resto del archivo original aquí abajo.
 exports.listByFamilia = async (req, res) => {
   try {
-    const idUsuarioActual = req.user.id_usuario ?? req.user.id; // Del token
+    const idUsuarioActual = req.user.id_usuario ?? req.user.id; 
     const rows = await queryP(Q.listByFamilia, { 
         id_familia: { type: sql.Int, value: Number(req.params.id_familia) },
-        current_user_id: { type: sql.Int, value: idUsuarioActual } // <--- NUEVO PARAMETRO
+        current_user_id: { type: sql.Int, value: idUsuarioActual } 
     });
     ok(res, rows);
   } catch (e) { fail(res, e); }
@@ -126,13 +95,10 @@ exports.setEstado = async (req, res) => {
     const { estado } = req.body;
     const idPost = Number(req.params.id);
 
-    // 1. Validamos estado
     if (!['Pendiente', 'Aprobada', 'Rechazada', 'Publicado'].includes(estado)) {
         return bad(res, 'estado inválido');
     }
 
-    // 2. BUSCAMOS INFORMACIÓN DEL DUEÑO DEL POST (Antes de actualizar)
-    // Hacemos un JOIN para obtener el token del usuario directamente
     const postInfo = await queryP(`
         SELECT p.id_usuario, u.fcm_token, u.nombre 
         FROM dbo.Publicaciones p
@@ -142,14 +108,11 @@ exports.setEstado = async (req, res) => {
 
     if (!postInfo.length) return notFound(res, 'Publicación no encontrada');
     const { fcm_token, nombre } = postInfo[0];
-
-    // 3. ACTUALIZAMOS EL ESTADO
     const rows = await queryP(Q.setEstado, {
       estado:  { type: sql.NVarChar, value: estado },
       id_post: { type: sql.Int, value: idPost }
     });
     
-    // 4. ENVIAMOS LA NOTIFICACIÓN AL ALUMNO
     if (fcm_token) {
         let titulo = '';
         let cuerpo = '';
@@ -208,8 +171,6 @@ exports.listByUsuario = async (req, res) => {
         id_usuario: { type: sql.Int, value: id_usuario } 
     });
     
-    // 👇 CORRECCIÓN DE SEGURIDAD:
-    // Si rows es null o undefined, lo convertimos en array vacío []
     const resultados = rows || []; 
 
     console.log(`📊 Encontrados: ${resultados.length} posts`);
@@ -231,7 +192,7 @@ exports.toggleLike = async (req, res) => {
             id_usuario: { type: sql.Int, value: id_usuario }
         });
         
-        ok(res, result[0]); // Devuelve { liked: 1 } o { liked: 0 }
+        ok(res, result[0]); 
     } catch (e) { fail(res, e); }
 };
 
@@ -267,10 +228,7 @@ exports.getComentarios = async (req, res) => {
 exports.deleteComentario = async (req, res) => {
   try {
     const idComentario = Number(req.params.id);
-    // El ID del usuario que quiere borrar
     const idUsuarioSolicitante = req.user.id_usuario ?? req.user.id;
-
-    // 1. Verificar de quién es el comentario
     const commentCheck = await queryP(
       'SELECT id_usuario FROM Publicaciones_Comentarios WHERE id_comentario = @id', 
       { id: { type: sql.Int, value: idComentario } }
@@ -279,16 +237,10 @@ exports.deleteComentario = async (req, res) => {
     if (!commentCheck.length) return notFound(res, 'Comentario no encontrado');
 
     const idDueno = commentCheck[0].id_usuario;
-    
-    // Verificar si es Admin (para que pueda moderar)
     const esAdmin = ['Admin', 'PapaEDI', 'MamaEDI'].some(r => (req.user.nombre_rol || req.user.rol || '').includes(r));
-
-    // 2. REGLA: Solo borra si es el dueño O es Admin
     if (idDueno !== idUsuarioSolicitante && !esAdmin) {
         return res.status(403).json({ message: 'No puedes borrar este comentario' });
     }
-
-    // 3. Soft Delete
     await queryP(
       'UPDATE Publicaciones_Comentarios SET activo = 0 WHERE id_comentario = @id', 
       { id: { type: sql.Int, value: idComentario } }
@@ -302,16 +254,10 @@ exports.deleteComentario = async (req, res) => {
 exports.listGlobal = async (req, res) => {
   try {
     const idUsuarioActual = req.user.id_usuario ?? req.user.id;
-    
-    // A. Posts normales
     const posts = await queryP(Q.listGlobal, { 
         current_user_id: { type: sql.Int, value: idUsuarioActual } 
     });
-
-    // B. Eventos Activos (Anclados)
     const eventos = await queryP(AgendaQ.getActiveEvents);
-
-    // C. Combinar: Eventos primero + Posts después
     const feed = [...(eventos || []), ...(posts || [])];
     
     ok(res, feed);

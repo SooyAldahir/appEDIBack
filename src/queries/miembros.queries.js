@@ -8,7 +8,7 @@ exports.Q = {
       mf.*, 
       u.nombre, u.apellido, u.tipo_usuario, 
       u.matricula, u.num_empleado,
-      u.fecha_nacimiento, u.telefono, u.carrera -- <--- AÑADE ESTOS CAMPOS
+      u.fecha_nacimiento, u.telefono, u.carrera 
     FROM dbo.Miembros_Familia mf
     JOIN dbo.Usuarios u ON u.id_usuario = mf.id_usuario
     WHERE mf.id_familia = @id_familia AND mf.activo = 1

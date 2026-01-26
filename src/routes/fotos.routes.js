@@ -2,12 +2,9 @@ const router = require('express').Router();
 const C = require('../controllers/fotos.controller');
 const validate = require('../utils/validate');
 const { addFoto } = require('../models/foto.model');
-// 1. IMPORTAR MIDDLEWARE DE AUTORIZACIÓN Y ROLES
 const authGuard = require('../middleware/authGuard'); 
-const roleGuard = require('../middleware/roleGuard'); //
+const roleGuard = require('../middleware/roleGuard'); 
 
-// 2. DEFINIR ROLES PERMITIDOS PARA EDITAR FOTOS
-// Admin y Padres (PapaEDI, MamaEDI)
 const ROLES_FOTOS_EDIT = [
   'Admin', 
   'PapaEDI', 
@@ -16,8 +13,8 @@ const ROLES_FOTOS_EDIT = [
 
 router.post(
   '/', 
-  authGuard, // Asegura que el usuario esté logueado (buena práctica)
-  roleGuard(...ROLES_FOTOS_EDIT), // <-- AÑADIDO: RESTRICCIÓN DE ROLES
+  authGuard,
+  roleGuard(...ROLES_FOTOS_EDIT), 
   validate(addFoto), 
   C.add
 );

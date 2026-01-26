@@ -2,13 +2,11 @@ const { sql, queryP } = require('../dataBase/dbConnection');
 const { ok, created, bad, notFound, fail } = require('../utils/http');
 const { Q } = require('../queries/agenda.queries');
 const { enviarNotificacionPush } = require('../utils/firebase');
-// 👇 ESTA ES LA LÍNEA QUE FALTABA
 const path = require('path'); 
 
-// --- HELPER PARA GUARDAR ARCHIVOS ---
+
 const saveFile = (file) => {
   if (!file) return null;
-  // Ahora sí funcionará path.extname
   const ext = path.extname(file.name);
   const fileName = `evento-${Date.now()}${ext}`;
   const uploadPath = path.join(__dirname, '..', 'public', 'uploads', fileName);
@@ -26,8 +24,6 @@ exports.create = async (req, res) => {
     const { titulo, descripcion, fecha_evento, hora_evento, estado_publicacion, dias_anticipacion } = req.body;
 
     if (!titulo || !fecha_evento) return bad(res, 'titulo y fecha_evento requeridos');
-
-    // 👇 PROCESAR IMAGEN SI EXISTE
     let imagenUrl = null;
     if (req.files && req.files.imagen) {
       imagenUrl = await saveFile(req.files.imagen);
@@ -65,7 +61,7 @@ exports.update = async (req, res) => {
     const id = Number(req.params.id);
     const { titulo, descripcion, fecha_evento, hora_evento, estado_publicacion, dias_anticipacion } = req.body;
 
-    // 👇 PROCESAR IMAGEN NUEVA
+
     let imagenUrl = null;
     if (req.files && req.files.imagen) {
       imagenUrl = await saveFile(req.files.imagen);
@@ -77,7 +73,7 @@ exports.update = async (req, res) => {
       descripcion:        { type: sql.NVarChar, value: descripcion },
       fecha_evento:       { type: sql.Date,     value: fecha_evento },
       hora_evento:        { type: sql.NVarChar, value: hora_evento ?? null },
-      imagen:             { type: sql.NVarChar, value: imagenUrl }, // Si es null, SQL mantiene la anterior
+      imagen:             { type: sql.NVarChar, value: imagenUrl }, 
       estado_publicacion: { type: sql.NVarChar, value: estado_publicacion ?? null },
       dias_anticipacion:  { type: sql.Int,      value: dias_anticipacion ?? null }
     });

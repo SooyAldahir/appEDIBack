@@ -1,6 +1,4 @@
-// queries/familias.queries.js
 exports.Q = {
-  // SELECT base con JOIN a Usuarios para traer los nombres
   base: `
     SELECT
       f.id_familia,
@@ -68,7 +66,6 @@ exports.Q = {
       AND f.activo = 1
   `,
 
-  // búsqueda por nombre (lo usas en /search?name=)
   byName: `
     {{BASE}}
     WHERE f.nombre_familia LIKE @like
@@ -86,7 +83,6 @@ exports.Q = {
     FROM dbo.Familias_EDI AS f
     LEFT JOIN dbo.Usuarios AS p ON p.id_usuario = f.papa_id
     LEFT JOIN dbo.Usuarios AS m ON m.id_usuario = f.mama_id
-    -- Solo unimos HIJOS y ALUMNOS ASIGNADOS, ya que los padres van por separado
     LEFT JOIN dbo.Miembros_Familia AS miembros ON miembros.id_familia = f.id_familia
                                               AND miembros.activo = 1 
                                               AND miembros.tipo_miembro IN ('HIJO', 'ALUMNO_ASIGNADO')

@@ -24,7 +24,6 @@ exports.listByPost = async (req, res) => {
 exports.listByFamilia = async (req, res) => {
   try {
     const id_familia = req.params.id_familia;
-    // Usamos la query nueva que apunta a Publicaciones
     const rows = await queryP(Q.getByFamilia, { 
         id_familia: { type: sql.Int, value: id_familia } 
     });

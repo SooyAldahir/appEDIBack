@@ -158,9 +158,7 @@ exports.Q = {
     WHERE u.id_usuario = @id_usuario
   `,
   softDelete: `UPDATE dbo.Usuarios SET activo = 0, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
-  //setToken: `UPDATE dbo.Usuarios SET fcm_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
   updateSession: `UPDATE dbo.Usuarios SET session_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
-  
   updateFcm:     `UPDATE dbo.Usuarios SET fcm_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
   clearToken: `UPDATE dbo.Usuarios SET session_token = NULL, updated_at = GETDATE() WHERE session_token = @token`,
   getTokensPadresPorFamilia: `

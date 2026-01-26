@@ -2,7 +2,7 @@ const { sql, queryP } = require('../dataBase/dbConnection');
 const { ok, created, bad, notFound, fail } = require('../utils/http');
 const { Q } = require('../queries/estados.queries');
 
-// Nuevo: Listar catálogo
+// Listar catálogo
 exports.getCatalog = async (req, res) => {
   try {
     const list = await queryP(Q.getCatalog);
@@ -16,7 +16,7 @@ exports.create = async (req, res) => {
     
     if (!id_usuario || !id_cat_estado) return bad(res, 'id_usuario e id_cat_estado requeridos');
 
-    // 1. Obtener nombre del estado
+    // Obtener nombre del estado
     const catalogo = await queryP('SELECT descripcion FROM dbo.Cat_Estados WHERE id_cat_estado = @id', { id: { type: sql.Int, value: id_cat_estado }});
     const nombreEstado = catalogo[0]?.descripcion || 'Desconocido';
 
@@ -24,7 +24,7 @@ exports.create = async (req, res) => {
       await queryP(Q.closePrevActives, { id_usuario: { type: sql.Int, value: id_usuario } });
     }
 
-    // 2. Insertar en historial (Estados_Alumno)
+    // Insertar en historial (Estados_Alumno)
     const rows = await queryP(Q.create, {
       id_usuario:   { type: sql.Int, value: id_usuario },
       id_cat_estado:{ type: sql.Int, value: id_cat_estado },
@@ -34,7 +34,7 @@ exports.create = async (req, res) => {
       activo:       { type: sql.Bit, value: 1 }
     });
 
-    // 3. --- NUEVO: Actualizar tabla Usuarios para que el cambio se vea en el perfil ---
+    // Actualizar tabla Usuarios para que el cambio se vea en el perfil 
     await queryP(Q.updateUserStatus, {
       id_usuario: { type: sql.Int, value: id_usuario },
       estado:     { type: sql.NVarChar, value: nombreEstado }

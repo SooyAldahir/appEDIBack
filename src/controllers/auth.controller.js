@@ -6,10 +6,8 @@ const UQ = require('../queries/usuarios.queries').Q;
 
 exports.login = async (req, res) => {
   try {
-    // 🔍 DEBUG EXTREMO
     console.log("Headers recibidos:", req.headers['content-type']);
     console.log("Body CRUDO recibido:", req.body); 
-    // ^ Si esto sale {} o undefined, el problema es express.json() o el cliente Flutter
 
     const { login, password } = req.body || {};
 
@@ -40,7 +38,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// ... logout igual ...
+
 exports.logout = async (req, res) => {
   try {
     const token = (req.headers.authorization || '').replace('Bearer ','').trim();

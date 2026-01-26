@@ -3,10 +3,7 @@ const { ok, created, bad, notFound, fail } = require('../utils/http');
 const { Q } = require('../queries/familias.queries');
 const MiembrosQ = require('../queries/miembros.queries').Q;
 const path = require('path');
-// 👇 1. IMPORTANTE: Importamos la notificación grupal
 const { enviarNotificacionMulticast } = require('../utils/firebase');
-
-// helper para inyectar el SELECT base con JOIN
 const withBase = (tpl) => tpl.replace('{{BASE}}', Q.base);
 
 exports.list = async (_req, res) => {
@@ -79,7 +76,7 @@ exports.create = async (req, res) => {
     await transaction.begin();
     const request = new sql.Request(transaction);
 
-    // 1. Insertar Familia
+    // Insertar Familia
     request.input('nombre_familia', sql.NVarChar, nombre_familia);
     request.input('residencia', sql.NVarChar, residencia);
     request.input('direccion', sql.NVarChar, direccion ?? null);
@@ -94,7 +91,7 @@ exports.create = async (req, res) => {
 
     const id_familia = familiaResult.recordset[0].id_familia;
 
-    // 2. Insertar Miembros
+    // Insertar Miembros
     const miembrosAIngresar = [];
     if (papa_id) miembrosAIngresar.push({ id: papa_id, tipo: 'PADRE' });
     if (mama_id) miembrosAIngresar.push({ id: mama_id, tipo: 'MADRE' });
@@ -115,16 +112,14 @@ exports.create = async (req, res) => {
 
     await transaction.commit(); 
 
-    // 🔔 NOTIFICACIONES (Ahora con los nombres CORRECTOS de tu tabla)
+
     try {
-        // A. Padres (Familia Creada)
         const idsPadres = [papa_id, mama_id].filter(id => id);
         if (idsPadres.length > 0) {
             const padresData = await queryP(`SELECT id_usuario, fcm_token FROM dbo.Usuarios WHERE id_usuario IN (${idsPadres.join(',')})`);
             const tokensPadres = [];
 
             for (const p of padresData) {
-                // CORRECCIÓN: Usamos id_usuario_destino, cuerpo, fecha_creacion
                 await queryP(`
                     INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
                     VALUES (@uid, @tit, @body, @tipo, @ref, 0, GETDATE())
@@ -145,7 +140,6 @@ exports.create = async (req, res) => {
             }
         }
 
-        // B. Hijos (Asignación)
         if (hijos.length > 0) {
             const hijosData = await queryP(`SELECT id_usuario, fcm_token FROM dbo.Usuarios WHERE id_usuario IN (${hijos.join(',')})`);
             const tokensHijos = [];

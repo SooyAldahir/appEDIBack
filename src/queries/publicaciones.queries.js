@@ -1,5 +1,4 @@
 exports.Q = {
-  // CORREGIDO: Usamos SELECT SCOPE_IDENTITY() en lugar de OUTPUT para evitar error con Triggers
   create: `
     INSERT INTO dbo.Publicaciones (id_familia, id_usuario, categoria_post, mensaje, url_imagen, estado, tipo, activo, created_at)
     VALUES (@id_familia, @id_usuario, @categoria_post, @mensaje, @url_imagen, @estado, @tipo, 1, GETDATE());
@@ -7,7 +6,6 @@ exports.Q = {
     SELECT * FROM dbo.Publicaciones WHERE id_post = SCOPE_IDENTITY();
   `,
 
-  // Consultas de lectura (estas no cambian)
   getUserRole: `
     SELECT r.nombre_rol, u.nombre, u.apellido 
     FROM dbo.Usuarios u 
@@ -65,8 +63,7 @@ exports.Q = {
     WHERE p.id_familia IS NULL AND p.categoria_post = N'Institucional' AND p.activo = 1
     ORDER BY p.fecha_publicacion DESC
   `,
-
-  // CORREGIDO: Usamos SELECT posterior en lugar de OUTPUT para evitar error con Triggers
+  
   setEstado: `
     UPDATE dbo.Publicaciones
     SET estado = @estado, updated_at = GETDATE()

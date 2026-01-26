@@ -22,7 +22,7 @@ router.patch('/:id/descripcion',
   C.updateDescripcion
 );
 
-// Lectura (⚠️ orden importa)
+// Lectura
 router.get('/search', C.searchByName);
 router.get('/por-ident/:ident', C.byIdent);
 router.get('/reporte-completo', auth, allow('Admin'), C.reporteCompleto);

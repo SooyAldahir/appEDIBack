@@ -17,7 +17,7 @@ exports.Q = {
     VALUES (@id_sala, @id_usuario, @mensaje, @tipo_mensaje);
   `,
 
-  // Listar mis chats (Muestra el nombre de la otra persona si es privado)
+  // Listar mis chats 
   getMyChats: `
     SELECT 
         s.id_sala,
@@ -58,7 +58,7 @@ exports.Q = {
     ORDER BY m.created_at ASC
   `,
 
-  // MAGIA: Buscar si ya existe chat privado entre dos personas
+  // Buscar si ya existe chat privado entre dos personas
   findPrivateChat: `
     SELECT p1.id_sala
     FROM Chat_Participantes p1

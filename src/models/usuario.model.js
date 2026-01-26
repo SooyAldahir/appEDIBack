@@ -1,7 +1,6 @@
-// src/models/usuario.model.js
 const Joi = require('joi');
 
-// --- ESQUEMA DE CREACIÓN ACTUALIZADO ---
+// ESQUEMA DE CREACIÓN 
 const createUserSchema = Joi.object({
   nombre: Joi.string().min(1).max(100).required(),
   apellido: Joi.string().allow('', null).max(100),
@@ -22,15 +21,12 @@ const createUserSchema = Joi.object({
     then: Joi.number().integer().required(),
     otherwise: Joi.allow(null),
   }),
-
-  // NUEVOS (se quedan igual)
   telefono: Joi.string().allow('', null).max(20),
   residencia: Joi.string().valid('Interna', 'Externa').allow(null),
   direccion: Joi.string().allow('', null).max(200),
   fecha_nacimiento: Joi.date().iso().allow(null),
   carrera: Joi.string().allow('', null).max(120),
 }).options({ stripUnknown: true });
-// --- FIN DEL ESQUEMA DE CREACIÓN ---
 
 
 const updateUserSchema = Joi.object({

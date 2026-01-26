@@ -89,7 +89,7 @@ async function addAlumnosToFamilia(req, res) {
         `);
 
         results.added.push(matricula);
-        results.usersNotif.push(user); // Guardamos para notificar al final
+        results.usersNotif.push(user); 
 
       } catch (err) {
         results.errors.push(`Matrícula ${matricula}: ${err.message}`);
@@ -97,16 +97,9 @@ async function addAlumnosToFamilia(req, res) {
     }
 
     await transaction.commit(); 
-
-    // 🔔 ZONA SEGURA DE NOTIFICACIONES (Post-Commit)
-    // Aquí es donde ocurría el error: usamos las columnas CORRECTAS.
-    
-    // A. Alumnos
     for (const u of results.usersNotif) {
         const tit = 'Nueva Asignación 🎒';
         const body = `Has sido asignado a la familia "${nombreFamilia}".`;
-
-        // Intentar guardar en BD (No rompe el flujo si falla)
         queryP(`
             INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
             VALUES (@uid, @tit, @body, 'ASIGNACION', @ref, 0, GETDATE())
@@ -116,14 +109,10 @@ async function addAlumnosToFamilia(req, res) {
             body: { type: sql.NVarChar, value: body },
             ref: { type: sql.Int, value: id_familia }
         }).catch(e => console.error("Error BD Notif Alumno:", e.message));
-
-        // Enviar Push
         if (u.fcm_token) {
             enviarNotificacionPush(u.fcm_token, tit, body, { tipo: 'ASIGNACION', id_familia: id_familia.toString() });
         }
     }
-
-    // B. Padres
     if (results.added.length > 0) {
         try {
             const padres = await queryP(`

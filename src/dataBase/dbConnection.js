@@ -1,10 +1,9 @@
-// src/dataBase/dbConnection.js
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
 const sql = require('mssql');
 
 
-// Config pool único compartido
+
 const dbConfig = {
   user: process.env.DBUSER,                
   password: process.env.DBPASSWORD,        

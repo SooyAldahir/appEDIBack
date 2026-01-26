@@ -4,7 +4,7 @@ const { hashPassword } = require('../utils/hash');
 const { ok, created, bad, fail, notFound } = require('../utils/http');
 const UQ = require('../queries/usuarios.queries').Q;
 const { Q } = require('../queries/usuarios.queries');
-const path = require('path'); // 👈 1. IMPORTANTE: Necesario para manejar rutas de archivos
+const path = require('path'); 
 
 exports.create = async (req, res) => {
   try {
@@ -34,7 +34,6 @@ exports.create = async (req, res) => {
     const user = rows[0]; 
     delete user.contrasena;
 
-    // 👇 LÓGICA AUTO-CHAT PADRES (Mantenida intacta)
     try {
         const newUserId = user.id_usuario || user.IdUsuario; 
         if (newUserId) {
@@ -54,10 +53,10 @@ exports.create = async (req, res) => {
                 idRol: { type: sql.Int, value: value.id_rol },
                 idUsuario: { type: sql.Int, value: newUserId }
             });
-            console.log(`✅ Verificación de chat completada para usuario ${newUserId}`);
+            console.log(`Verificación de chat completada para usuario ${newUserId}`);
         }
     } catch (chatError) {
-        console.error("⚠️ Error agregando usuario al chat automático:", chatError);
+        console.error("Error agregando usuario al chat automático:", chatError);
     }
 
     created(res, user);
@@ -115,37 +114,25 @@ exports.searchUsers = async (req, res) => {
   }
 };
 
-// 🔥 [MODIFICADO] Función UPDATE ahora acepta IMÁGENES
 exports.update = async (req, res) => {
   try {
-    // 1. Manejo de archivo (Si se envía una foto)
     let rutaFoto = null;
-    
-    // 'foto' es el nombre del campo que enviaremos desde Flutter
     if (req.files && req.files.foto) {
       const archivo = req.files.foto;
       const extension = path.extname(archivo.name);
-      // Creamos un nombre único: perfil-ID-timestamp.jpg
       const nombreArchivo = `perfil-${req.params.id}-${Date.now()}${extension}`;
-      
       const uploadPath = path.join(__dirname, '../public/uploads', nombreArchivo);
-      
-      // Guardamos el archivo físico en la carpeta uploads
       await archivo.mv(uploadPath);
       rutaFoto = `/uploads/${nombreArchivo}`;
     }
 
-    // 2. Validación de datos (allowUnknown: true permite campos extra como 'foto')
+
     const { error, value } = updateUserSchema
       .prefs({ abortEarly: false, allowUnknown: true })
       .validate(req.body);
 
     if (error) return bad(res, 'Datos inválidos: ' + error.message);
-
-    // Helper para nulos
     const nn = (v) => (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) ? null : v;
-
-    // Manejo de fecha
     let fechaDate = null;
     if (value.fecha_nacimiento) {
       let iso = String(value.fecha_nacimiento).trim();
@@ -155,16 +142,12 @@ exports.update = async (req, res) => {
       if (!isNaN(d.getTime())) fechaDate = d;
     }
 
-    // 3. Decidir qué foto usar: la nueva (si se subió) o la que venga en el body (texto)
     const fotoFinal = rutaFoto ? rutaFoto : nn(value.foto_perfil);
-
     const params = {
       id_usuario:       { type: sql.Int,      value: Number(req.params.id) },
       nombre:           { type: sql.NVarChar, value: nn(value.nombre) },
       apellido:         { type: sql.NVarChar, value: nn(value.apellido) },
-      
-      foto_perfil:      { type: sql.NVarChar, value: fotoFinal }, // 👈 AQUÍ ACTUALIZAMOS LA FOTO
-      
+      foto_perfil:      { type: sql.NVarChar, value: fotoFinal },
       estado:           { type: sql.NVarChar, value: nn(value.estado) },
       activo:           { type: sql.Bit,      value: value.activo === undefined ? null : (value.activo ? 1 : 0) },
       telefono:         { type: sql.NVarChar, value: nn(value.telefono) },
@@ -262,7 +245,6 @@ exports.updateToken = async (req, res) => {
 
 exports.getBirthdays = async (req, res) => {
   try {
-    // Usamos la query que acabamos de crear
     const rows = await queryP(Q.birthdaysToday);
     ok(res, rows);
   } catch (e) {

@@ -24,10 +24,10 @@ const ROLES_ADMIN = [
   'Tutor'
 ]; 
 
-// 👇 1. ESTA RUTA DEBE IR PRIMERO (Para que no se confunda con IDs)
+
 router.get('/mis-posts', authGuard, C.listByUsuario);
 
-// 👇 2. Ahora sí podemos usar ROLES_ACCESO_APP porque ya existe arriba
+
 router.post('/', authGuard, roleGuard(...ROLES_ACCESO_APP), validate(createPublicacion), C.create);
 
 router.get('/feed/global', authGuard, C.listGlobal);
@@ -40,7 +40,7 @@ router.put(
   '/:id/estado', 
   authGuard, 
   roleGuard(...ROLES_ADMIN), 
-  // validate(setEstadoPublicacion), // Comentado para permitir estado 'Publicado'
+
   C.setEstado
 );
 

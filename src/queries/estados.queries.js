@@ -8,7 +8,7 @@ exports.Q = {
     WHERE id_usuario = @id_usuario AND activo = 1
   `,
   
-  // ASEGÚRATE DE QUE ESTA LÍNEA TENGA 'id_cat_estado'
+
   create: `
     INSERT INTO dbo.Estados_Alumno (id_usuario, id_cat_estado, tipo_estado, fecha_inicio, fecha_fin, activo)
     OUTPUT INSERTED.* VALUES (@id_usuario, @id_cat_estado, @tipo_estado, ISNULL(@fecha_inicio, GETDATE()), @fecha_fin, @activo)

@@ -1,5 +1,4 @@
 exports.Q = {
-  // CREATE: Insertamos el mensaje siempre con activo = 1 (visible)
   create: `
     INSERT INTO dbo.Mensajes_Chat (id_familia, id_usuario, contenido, activo)
     VALUES (@id_familia, @id_usuario, @mensaje, 1);
@@ -9,10 +8,6 @@ exports.Q = {
     WHERE id_mensaje = SCOPE_IDENTITY();
   `,
 
-  // LIST: Trae TODO el historial.
-  // 👇 CAMBIO IMPORTANTE: 
-  // 1. Usamos LEFT JOIN en Roles por si el usuario pierde el rol.
-  // 2. NO filtramos por 'u.activo'. Si el usuario existe, se muestra su mensaje.
   listByFamilia: `
     SELECT m.id_mensaje, 
            m.contenido as mensaje, 
@@ -28,7 +23,6 @@ exports.Q = {
     ORDER BY m.created_at ASC
   `,
 
-  // TOKENS: Aquí SI filtramos activos, porque no queremos enviar notificaciones a gente bloqueada.
   getFamilyTokens: `
     SELECT u.fcm_token 
     FROM dbo.Usuarios u
