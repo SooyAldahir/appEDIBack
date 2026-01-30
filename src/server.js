@@ -10,13 +10,13 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     await queryP('SELECT 1 AS up');
     
-    console.log(`✅ API EDI-301 lista en puerto ${PORT} (Accesible desde red)`);
+    console.log(`API EDI-301 lista en puerto ${PORT} (Accesible desde red)`);
 
     if (process.env.BYPASS_AUTH === '1') {
-      console.warn('⚠️  AUTH DESACTIVADA TEMPORALMENTE (BYPASS_AUTH=1)');
+      console.warn('AUTH DESACTIVADA TEMPORALMENTE (BYPASS_AUTH=1)');
     }
 
   } catch (e) {
-    console.error('❌ Error al conectar a SQL Server:', e.message);
+    console.error('Error al conectar a SQL Server:', e.message);
   }
 });
