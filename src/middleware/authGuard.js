@@ -13,10 +13,10 @@ module.exports = async function authGuard(req, res, next) {
     const rs = await queryP(`
       SELECT u.id_usuario, u.nombre, u.apellido, u.correo, u.tipo_usuario,
              u.id_rol, u.session_token, u.foto_perfil,
-             u.estado, -- <--- Importante traer esto
+             u.estado, 
              r.nombre_rol
-      FROM dbo.Usuarios u
-      JOIN dbo.Roles r ON r.id_rol = u.id_rol
+      FROM EDI.Usuarios u
+      JOIN EDI.Roles r ON r.id_rol = u.id_rol
       WHERE u.session_token = @t
     `, { t: { type: sql.NVarChar, value: token } });
 

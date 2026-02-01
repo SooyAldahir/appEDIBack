@@ -1,9 +1,9 @@
 exports.Q = {
   add: `
-    INSERT INTO dbo.Fotos_Publicacion (id_post, url_foto)
+    INSERT INTO EDI.Fotos_Publicacion (id_post, url_foto)
     OUTPUT INSERTED.* VALUES (@id_post, @url_foto)
   `,
-  listByPost: `SELECT * FROM dbo.Fotos_Publicacion WHERE id_post = @id_post ORDER BY id_foto ASC`,
+  listByPost: `SELECT * FROM EDI.Fotos_Publicacion WHERE id_post = @id_post ORDER BY id_foto ASC`,
 
   getByFamilia: `
     SELECT 
@@ -11,7 +11,7 @@ exports.Q = {
       url_imagen, 
       mensaje, 
       created_at
-    FROM dbo.Publicaciones
+    FROM EDI.Publicaciones
     WHERE id_familia = @id_familia
       AND url_imagen IS NOT NULL 
       AND url_imagen != ''

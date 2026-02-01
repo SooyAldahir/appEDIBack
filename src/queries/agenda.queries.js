@@ -1,6 +1,6 @@
 exports.Q = {
   create: `
-    INSERT INTO dbo.Agenda_Actividades (
+    INSERT INTO EDI.Agenda_Actividades (
         titulo, descripcion, fecha_evento, hora_evento, imagen, estado_publicacion, dias_anticipacion
     )
     OUTPUT INSERTED.* VALUES (
@@ -20,7 +20,7 @@ exports.Q = {
       fecha_creacion,
       updated_at,
       activo
-    FROM dbo.Agenda_Actividades
+    FROM EDI.Agenda_Actividades
     WHERE (@estado IS NULL OR estado_publicacion = @estado)
       AND (@desde IS NULL OR fecha_evento >= @desde)
       AND (@hasta IS NULL OR fecha_evento <= @hasta)
@@ -29,7 +29,7 @@ exports.Q = {
   `,
 
   update: `
-    UPDATE dbo.Agenda_Actividades SET
+    UPDATE EDI.Agenda_Actividades SET
       titulo             = ISNULL(NULLIF(@titulo, ''), titulo),
       descripcion        = ISNULL(NULLIF(@descripcion, ''), descripcion),
       fecha_evento       = ISNULL(@fecha_evento, fecha_evento),
@@ -41,7 +41,7 @@ exports.Q = {
     OUTPUT INSERTED.* WHERE id_actividad = @id_actividad
   `,
 
-  remove: `UPDATE dbo.Agenda_Actividades SET activo = 0, updated_at = GETDATE() WHERE id_actividad = @id_actividad`,
+  remove: `UPDATE EDI.Agenda_Actividades SET activo = 0, updated_at = GETDATE() WHERE id_actividad = @id_actividad`,
   getActiveEvents: `
     SELECT 
         id_actividad as id_evento, 
@@ -58,7 +58,7 @@ exports.Q = {
         0 as likes_count,
         0 as comentarios_count,
         0 as is_liked
-    FROM dbo.Agenda_Actividades
+    FROM EDI.Agenda_Actividades
     WHERE activo = 1
       AND estado_publicacion = 'Publicada'
       AND CAST(GETDATE() AS DATE) >= DATEADD(DAY, -dias_anticipacion, fecha_evento)

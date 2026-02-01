@@ -23,16 +23,16 @@ exports.Q = {
       u.session_token,
       r.nombre_rol,
       (SELECT TOP 1 mf.id_familia 
-       FROM dbo.Miembros_Familia mf
+       FROM EDI.Miembros_Familia mf
        WHERE mf.id_usuario = u.id_usuario AND mf.activo = 1
        ORDER BY mf.id_miembro DESC) AS id_familia,
       (SELECT TOP 1 f.nombre_familia 
-       FROM dbo.Miembros_Familia mf
-       JOIN dbo.Familias_EDI f ON f.id_familia = mf.id_familia
+       FROM EDI.Miembros_Familia mf
+       JOIN EDI.Familias_EDI f ON f.id_familia = mf.id_familia
        WHERE mf.id_usuario = u.id_usuario AND mf.activo = 1 AND f.activo = 1
        ORDER BY mf.id_miembro DESC) AS nombre_familia
-    FROM dbo.Usuarios u
-    JOIN dbo.Roles r ON r.id_rol = u.id_rol
+    FROM EDI.Usuarios u
+    JOIN EDI.Roles r ON r.id_rol = u.id_rol
     WHERE u.correo = @Login
        OR (TRY_CONVERT(INT, @Login) IS NOT NULL AND u.matricula = TRY_CONVERT(INT, @Login))
        OR (TRY_CONVERT(INT, @Login) IS NOT NULL AND u.num_empleado = TRY_CONVERT(INT, @Login))
@@ -56,7 +56,7 @@ exports.Q = {
       carrera           NVARCHAR(120)
     );
 
-    INSERT INTO dbo.Usuarios
+    INSERT INTO EDI.Usuarios
     (
       nombre, apellido, correo, contrasena, foto_perfil, tipo_usuario,
       matricula, num_empleado, id_rol,
@@ -106,7 +106,7 @@ exports.Q = {
       carrera           NVARCHAR(120)
     );
 
-    UPDATE dbo.Usuarios
+    UPDATE EDI.Usuarios
     SET
       nombre            = COALESCE(@nombre, nombre),
       apellido          = COALESCE(@apellido, apellido),
@@ -141,40 +141,39 @@ exports.Q = {
   `,
 
   list: `SELECT u.id_usuario,u.nombre,u.apellido,u.correo,u.tipo_usuario,u.matricula,u.num_empleado,u.estado,u.activo,r.nombre_rol
-         FROM dbo.Usuarios u JOIN dbo.Roles r ON r.id_rol = u.id_rol`,
+         FROM EDI.Usuarios u JOIN EDI.Roles r ON r.id_rol = u.id_rol`,
   byId: `
     SELECT TOP 1 
       u.*, 
       r.nombre_rol, 
       f.nombre_familia,
       f.id_familia,
-      CE.color as color_estado  -- <--- NUEVO CAMPO
-    FROM dbo.Usuarios u
-    JOIN dbo.Roles r ON r.id_rol = u.id_rol
-    LEFT JOIN dbo.Miembros_Familia mf ON mf.id_usuario = u.id_usuario AND mf.activo = 1
-    LEFT JOIN dbo.Familias_EDI f ON f.id_familia = mf.id_familia AND f.activo = 1
-    -- JOIN para buscar el color del estado actual (por nombre)
-    LEFT JOIN dbo.Cat_Estados CE ON CE.descripcion = u.estado 
+      CE.color as color_estado  
+    FROM EDI.Usuarios u
+    JOIN EDI.Roles r ON r.id_rol = u.id_rol
+    LEFT JOIN EDI.Miembros_Familia mf ON mf.id_usuario = u.id_usuario AND mf.activo = 1
+    LEFT JOIN EDI.Familias_EDI f ON f.id_familia = mf.id_familia AND f.activo = 1
+    LEFT JOIN EDI.Cat_Estados CE ON CE.descripcion = u.estado 
     WHERE u.id_usuario = @id_usuario
   `,
-  softDelete: `UPDATE dbo.Usuarios SET activo = 0, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
-  updateSession: `UPDATE dbo.Usuarios SET session_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
-  updateFcm:     `UPDATE dbo.Usuarios SET fcm_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
-  clearToken: `UPDATE dbo.Usuarios SET session_token = NULL, updated_at = GETDATE() WHERE session_token = @token`,
+  softDelete: `UPDATE EDI.Usuarios SET activo = 0, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
+  updateSession: `UPDATE EDI.Usuarios SET session_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
+  updateFcm:     `UPDATE EDI.Usuarios SET fcm_token = @token, updated_at = GETDATE() WHERE id_usuario = @id_usuario`,
+  clearToken: `UPDATE EDI.Usuarios SET session_token = NULL, updated_at = GETDATE() WHERE session_token = @token`,
   getTokensPadresPorFamilia: `
-    SELECT u.id_usuario, u.fcm_token AS session_token  -- <--- OJO AQUÍ: Lo apodamos 'session_token' para no cambiar todo el código del controlador
-    FROM dbo.Usuarios u
-    JOIN dbo.Miembros_Familia mf ON mf.id_usuario = u.id_usuario
-    JOIN dbo.Roles r ON r.id_rol = u.id_rol
+    SELECT u.id_usuario, u.fcm_token AS session_token 
+    FROM EDI.Usuarios u
+    JOIN EDI.Miembros_Familia mf ON mf.id_usuario = u.id_usuario
+    JOIN EDI.Roles r ON r.id_rol = u.id_rol
     WHERE mf.id_familia = @id_familia 
       AND mf.activo = 1 
       AND u.activo = 1
       AND (r.nombre_rol IN ('Padre', 'Madre', 'Tutor', 'Admin', 'PapaEDI', 'MamaEDI'))
-      AND u.fcm_token IS NOT NULL  -- <--- Ahora validamos que tenga fcm_token
+      AND u.fcm_token IS NOT NULL  
   `,
   
   createNotificacion: `
-      INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia)
+      INSERT INTO EDI.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia)
       VALUES (@id_usuario_destino, @titulo, @cuerpo, @tipo, @id_referencia)
   `,
   birthdaysToday: `
@@ -184,7 +183,7 @@ exports.Q = {
       apellido, 
       url_foto_perfil, 
       fecha_nacimiento 
-    FROM dbo.Usuarios 
+    FROM EDI.Usuarios 
     WHERE DAY(fecha_nacimiento) = DAY(GETDATE()) 
     AND MONTH(fecha_nacimiento) = MONTH(GETDATE()) 
     AND activo = 1

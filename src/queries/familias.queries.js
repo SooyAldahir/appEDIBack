@@ -12,14 +12,12 @@ exports.Q = {
       f.descripcion, 
       (p.nombre + ' ' + p.apellido) AS papa_nombre,
       (m.nombre + ' ' + m.apellido) AS mama_nombre,
-
-      -- --- AÑADE ESTAS DOS LÍNEAS ---
       p.num_empleado AS papa_num_empleado,
       m.num_empleado AS mama_num_empleado
 
-    FROM dbo.Familias_EDI AS f
-    LEFT JOIN dbo.Usuarios AS p ON p.id_usuario = f.papa_id
-    LEFT JOIN dbo.Usuarios AS m ON m.id_usuario = f.mama_id
+    FROM EDI.Familias_EDI AS f
+    LEFT JOIN EDI.Usuarios AS p ON p.id_usuario = f.papa_id
+    LEFT JOIN EDI.Usuarios AS m ON m.id_usuario = f.mama_id
   `,
 
   list: `
@@ -34,14 +32,14 @@ exports.Q = {
   `,
 
   insert: `
-    INSERT INTO dbo.Familias_EDI (nombre_familia, residencia, direccion, papa_id, mama_id)
+    INSERT INTO EDI.Familias_EDI (nombre_familia, residencia, direccion, papa_id, mama_id)
     VALUES (@nombre_familia, @residencia, @direccion, @papa_id, @mama_id);
 
     SELECT CAST(SCOPE_IDENTITY() AS INT) AS id_familia;
   `,
 
   update: `
-    UPDATE dbo.Familias_EDI
+    UPDATE EDI.Familias_EDI
     SET
       nombre_familia = COALESCE(@nombre_familia, nombre_familia),
       residencia     = COALESCE(@residencia, residencia),
@@ -55,13 +53,13 @@ exports.Q = {
   `,
 
   softDelete: `
-    UPDATE dbo.Familias_EDI SET activo = 0 WHERE id_familia = @id_familia
+    UPDATE EDI.Familias_EDI SET activo = 0 WHERE id_familia = @id_familia
   `,
 
   byIdent: `
     {{BASE}}
-    JOIN dbo.Miembros_Familia mf ON mf.id_familia = f.id_familia
-    JOIN dbo.Usuarios u          ON u.id_usuario = mf.id_usuario
+    JOIN EDI.Miembros_Familia mf ON mf.id_familia = f.id_familia
+    JOIN EDI.Usuarios u          ON u.id_usuario = mf.id_usuario
     WHERE (u.matricula = @ident OR u.num_empleado = @ident)
       AND f.activo = 1
   `,
@@ -80,18 +78,18 @@ exports.Q = {
       miembros.id_usuario,
       (u.nombre + ' ' + u.apellido) AS miembro_nombre,
       miembros.tipo_miembro
-    FROM dbo.Familias_EDI AS f
-    LEFT JOIN dbo.Usuarios AS p ON p.id_usuario = f.papa_id
-    LEFT JOIN dbo.Usuarios AS m ON m.id_usuario = f.mama_id
-    LEFT JOIN dbo.Miembros_Familia AS miembros ON miembros.id_familia = f.id_familia
+    FROM EDI.Familias_EDI AS f
+    LEFT JOIN EDI.Usuarios AS p ON p.id_usuario = f.papa_id
+    LEFT JOIN EDI.Usuarios AS m ON m.id_usuario = f.mama_id
+    LEFT JOIN EDI.Miembros_Familia AS miembros ON miembros.id_familia = f.id_familia
                                               AND miembros.activo = 1 
                                               AND miembros.tipo_miembro IN ('HIJO', 'ALUMNO_ASIGNADO')
-    LEFT JOIN dbo.Usuarios AS u ON u.id_usuario = miembros.id_usuario
+    LEFT JOIN EDI.Usuarios AS u ON u.id_usuario = miembros.id_usuario
     WHERE f.activo = 1
     ORDER BY f.nombre_familia
   `,
   updateFotos: `
-  UPDATE dbo.Familias_EDI
+  UPDATE EDI.Familias_EDI
   SET
     foto_portada_url = COALESCE(@foto_portada_url, foto_portada_url),
     foto_perfil_url = COALESCE(@foto_perfil_url, foto_perfil_url),
