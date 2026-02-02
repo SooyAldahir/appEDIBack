@@ -6,7 +6,7 @@ async function add(req, res) {
   try {
     const { id_familia, id_usuario, tipo_miembro } = req.body;
     const rows = await queryP(`
-      INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
+      INSERT INTO EDI.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
       OUTPUT INSERTED.id_miembro
       VALUES (@id_familia, @id_usuario, @tipo_miembro, 1, SYSDATETIME());
     `, {
@@ -28,7 +28,7 @@ async function byFamilia(req, res) {
 async function remove(req, res) {
   try {
     const id = Number(req.params.id);
-    await queryP(`DELETE FROM dbo.Miembros_Familia WHERE id_miembro = @id`, { id: { type: sql.Int, value: id }});
+    await queryP(`DELETE FROM EDI.Miembros_Familia WHERE id_miembro = @id`, { id: { type: sql.Int, value: id }});
     ok(res, { message: 'Eliminado' });
   } catch (e) { fail(res, e); }
 }
@@ -44,7 +44,7 @@ async function addBulk(req, res) {
       request.input('id_familia', sql.Int, id_familia);
       request.input('id_usuario', sql.Int, id_usuario);
       request.input('tipo_miembro', sql.NVarChar, 'ALUMNO_ASIGNADO');
-      await request.query(`INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro) VALUES (@id_familia, @id_usuario, @tipo_miembro)`);
+      await request.query(`INSERT INTO EDI.Miembros_Familia (id_familia, id_usuario, tipo_miembro) VALUES (@id_familia, @id_usuario, @tipo_miembro)`);
     }
     await transaction.commit();
     ok(res, { message: `${id_usuarios.length} miembro(s) agregado(s) con éxito.` });
@@ -64,7 +64,7 @@ async function addAlumnosToFamilia(req, res) {
   try {
     await transaction.begin();
     
-    const fRes = await new sql.Request(transaction).query(`SELECT nombre_familia FROM dbo.Familias_EDI WHERE id_familia = ${id_familia}`);
+    const fRes = await new sql.Request(transaction).query(`SELECT nombre_familia FROM EDI.Familias_EDI WHERE id_familia = ${id_familia}`);
     const nombreFamilia = fRes.recordset[0]?.nombre_familia || 'Familia';
     
     const results = { added: [], notFound: [], errors: [], usersNotif: [] };
@@ -72,7 +72,7 @@ async function addAlumnosToFamilia(req, res) {
     for (const matricula of matriculas) {
       try {
         const uReq = new sql.Request(transaction);
-        const uRes = await uReq.query(`SELECT id_usuario, fcm_token FROM dbo.Usuarios WHERE matricula = ${parseInt(matricula)}`);
+        const uRes = await uReq.query(`SELECT id_usuario, fcm_token FROM EDI.Usuarios WHERE matricula = ${parseInt(matricula)}`);
         
         if (!uRes.recordset.length) { results.notFound.push(matricula); continue; }
         
@@ -81,9 +81,9 @@ async function addAlumnosToFamilia(req, res) {
         mReq.input('idF', sql.Int, id_familia);
         mReq.input('idU', sql.Int, user.id_usuario);
         await mReq.query(`
-          IF NOT EXISTS (SELECT 1 FROM dbo.Miembros_Familia WHERE id_familia = @idF AND id_usuario = @idU)
+          IF NOT EXISTS (SELECT 1 FROM EDI.Miembros_Familia WHERE id_familia = @idF AND id_usuario = @idU)
           BEGIN
-            INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
+            INSERT INTO EDI.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
             VALUES (@idF, @idU, 'HIJO', 1, SYSDATETIME())
           END
         `);
@@ -101,7 +101,7 @@ async function addAlumnosToFamilia(req, res) {
         const tit = 'Nueva Asignación 🎒';
         const body = `Has sido asignado a la familia "${nombreFamilia}".`;
         queryP(`
-            INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
+            INSERT INTO EDI.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
             VALUES (@uid, @tit, @body, 'ASIGNACION', @ref, 0, GETDATE())
         `, {
             uid: { type: sql.Int, value: u.id_usuario },
@@ -117,9 +117,9 @@ async function addAlumnosToFamilia(req, res) {
         try {
             const padres = await queryP(`
                 SELECT u.id_usuario, u.fcm_token 
-                FROM dbo.Miembros_Familia mf
-                JOIN dbo.Usuarios u ON mf.id_usuario = u.id_usuario
-                JOIN dbo.Roles r ON u.id_rol = r.id_rol
+                FROM EDI.Miembros_Familia mf
+                JOIN EDI.Usuarios u ON mf.id_usuario = u.id_usuario
+                JOIN EDI.Roles r ON u.id_rol = r.id_rol
                 WHERE mf.id_familia = @idFam AND mf.activo = 1
                 AND r.nombre_rol IN ('Padre', 'Madre', 'Tutor', 'PapaEDI', 'MamaEDI')
             `, { idFam: { type: sql.Int, value: id_familia } });
@@ -130,7 +130,7 @@ async function addAlumnosToFamilia(req, res) {
 
             for (const p of padres) {
                 queryP(`
-                    INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
+                    INSERT INTO EDI.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
                     VALUES (@uid, @tit, @body, 'NUEVO_MIEMBRO', @ref, 0, GETDATE())
                 `, {
                     uid: { type: sql.Int, value: p.id_usuario },

@@ -86,8 +86,8 @@ async function _sendPushToRoom(idSala, senderId, senderName, messageText) {
         // Buscar tokens
         const queryTokens = `
             SELECT u.fcm_token 
-            FROM Chat_Participantes cp
-            JOIN Usuarios u ON u.id_usuario = cp.id_usuario
+            FROM EDI.Chat_Participantes cp
+            JOIN EDI.Usuarios u ON u.id_usuario = cp.id_usuario
             WHERE cp.id_sala = @idSala 
               AND cp.id_usuario != @senderId
               AND u.fcm_token IS NOT NULL 

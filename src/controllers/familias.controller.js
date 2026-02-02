@@ -84,7 +84,7 @@ exports.create = async (req, res) => {
     request.input('mama_id', sql.Int, mama_id ?? null);
     
     const familiaResult = await request.query(`
-      INSERT INTO dbo.Familias_EDI (nombre_familia, residencia, direccion, papa_id, mama_id)
+      INSERT INTO EDI.Familias_EDI (nombre_familia, residencia, direccion, papa_id, mama_id)
       OUTPUT INSERTED.id_familia
       VALUES (@nombre_familia, @residencia, @direccion, @papa_id, @mama_id);
     `);
@@ -105,7 +105,7 @@ exports.create = async (req, res) => {
       mReq.input('id_usuario', sql.Int, miembro.id);
       mReq.input('tipo', sql.NVarChar, miembro.tipo);
       await mReq.query(`
-        INSERT INTO dbo.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
+        INSERT INTO EDI.Miembros_Familia (id_familia, id_usuario, tipo_miembro, activo, created_at)
         VALUES (@id_familia, @id_usuario, @tipo, 1, SYSDATETIME())
       `);
     }
@@ -116,12 +116,12 @@ exports.create = async (req, res) => {
     try {
         const idsPadres = [papa_id, mama_id].filter(id => id);
         if (idsPadres.length > 0) {
-            const padresData = await queryP(`SELECT id_usuario, fcm_token FROM dbo.Usuarios WHERE id_usuario IN (${idsPadres.join(',')})`);
+            const padresData = await queryP(`SELECT id_usuario, fcm_token FROM EDI.Usuarios WHERE id_usuario IN (${idsPadres.join(',')})`);
             const tokensPadres = [];
 
             for (const p of padresData) {
                 await queryP(`
-                    INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
+                    INSERT INTO EDI.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
                     VALUES (@uid, @tit, @body, @tipo, @ref, 0, GETDATE())
                 `, {
                     uid: { type: sql.Int, value: p.id_usuario },
@@ -141,12 +141,12 @@ exports.create = async (req, res) => {
         }
 
         if (hijos.length > 0) {
-            const hijosData = await queryP(`SELECT id_usuario, fcm_token FROM dbo.Usuarios WHERE id_usuario IN (${hijos.join(',')})`);
+            const hijosData = await queryP(`SELECT id_usuario, fcm_token FROM EDI.Usuarios WHERE id_usuario IN (${hijos.join(',')})`);
             const tokensHijos = [];
 
             for (const h of hijosData) {
                 await queryP(`
-                    INSERT INTO dbo.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
+                    INSERT INTO EDI.Notificaciones (id_usuario_destino, titulo, cuerpo, tipo, id_referencia, leido, fecha_creacion)
                     VALUES (@uid, @tit, @body, @tipo, @ref, 0, GETDATE())
                 `, {
                     uid: { type: sql.Int, value: h.id_usuario },

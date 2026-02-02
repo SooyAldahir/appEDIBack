@@ -101,8 +101,8 @@ exports.setEstado = async (req, res) => {
 
     const postInfo = await queryP(`
         SELECT p.id_usuario, u.fcm_token, u.nombre 
-        FROM dbo.Publicaciones p
-        JOIN dbo.Usuarios u ON u.id_usuario = p.id_usuario
+        FROM EDI.Publicaciones p
+        JOIN EDI.Usuarios u ON u.id_usuario = p.id_usuario
         WHERE p.id_post = @id_post
     `, { id_post: { type: sql.Int, value: idPost } });
 
@@ -230,7 +230,7 @@ exports.deleteComentario = async (req, res) => {
     const idComentario = Number(req.params.id);
     const idUsuarioSolicitante = req.user.id_usuario ?? req.user.id;
     const commentCheck = await queryP(
-      'SELECT id_usuario FROM Publicaciones_Comentarios WHERE id_comentario = @id', 
+      'SELECT id_usuario FROM EDI.Publicaciones_Comentarios WHERE id_comentario = @id', 
       { id: { type: sql.Int, value: idComentario } }
     );
 
@@ -242,7 +242,7 @@ exports.deleteComentario = async (req, res) => {
         return res.status(403).json({ message: 'No puedes borrar este comentario' });
     }
     await queryP(
-      'UPDATE Publicaciones_Comentarios SET activo = 0 WHERE id_comentario = @id', 
+      'UPDATE EDI.Publicaciones_Comentarios SET activo = 0 WHERE id_comentario = @id', 
       { id: { type: sql.Int, value: idComentario } }
     );
 

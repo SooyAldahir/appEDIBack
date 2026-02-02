@@ -9,7 +9,7 @@ const verificarCumpleanos = async () => {
   try {
     const cumpleaneros = await queryP(`
       SELECT id_usuario, nombre, apellido, id_familia 
-      FROM dbo.Usuarios 
+      FROM EDI.Usuarios 
       WHERE DAY(fecha_nacimiento) = DAY(GETDATE()) 
       AND MONTH(fecha_nacimiento) = MONTH(GETDATE())
       AND activo = 1
@@ -23,7 +23,7 @@ const verificarCumpleanos = async () => {
     for (const user of cumpleaneros) {
       const nombreCompleto = `${user.nombre} ${user.apellido || ''}`.trim();
       const yaPublicado = await queryP(`
-        SELECT id_post FROM dbo.Publicaciones 
+        SELECT id_post FROM EDI.Publicaciones 
         WHERE CAST(created_at AS DATE) = CAST(GETDATE() AS DATE)
         AND tipo = 'CUMPLEAÑOS' 
         AND mensaje LIKE @patronNombre
@@ -35,7 +35,7 @@ const verificarCumpleanos = async () => {
       const titulo = `¡Feliz cumpleaños ${nombreCompleto}! 🎂🎉🎊`;
       const mensaje = "El departamento de capellanía te desea lo mejor hoy en este día tan especial. ¡Que Dios te bendiga grandemente!";
       const postResult = await queryP(`
-        INSERT INTO dbo.Publicaciones 
+        INSERT INTO EDI.Publicaciones 
           (id_usuario, categoria_post, mensaje, url_imagen, tipo, estado, created_at, activo)
         OUTPUT INSERTED.id_post
         VALUES 
@@ -51,7 +51,7 @@ const verificarCumpleanos = async () => {
 
       if (user.id_familia) {
         const familiares = await queryP(`
-          SELECT fcm_token FROM dbo.Usuarios 
+          SELECT fcm_token FROM EDI.Usuarios 
           WHERE id_familia = @idFam AND activo = 1 
           AND fcm_token IS NOT NULL AND LEN(fcm_token) > 10
         `, { idFam: { type: sql.Int, value: user.id_familia } });

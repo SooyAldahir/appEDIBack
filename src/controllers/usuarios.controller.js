@@ -38,13 +38,13 @@ exports.create = async (req, res) => {
         const newUserId = user.id_usuario || user.IdUsuario; 
         if (newUserId) {
             const autoChatQuery = `
-                DECLARE @RoleName nvarchar(50) = (SELECT nombre_rol FROM dbo.Roles WHERE id_rol = @idRol);
+                DECLARE @RoleName nvarchar(50) = (SELECT nombre_rol FROM EDI.Roles WHERE id_rol = @idRol);
                 IF @RoleName IN ('Padre', 'Madre', 'Tutor', 'PapaEDI', 'MamaEDI')
                 BEGIN
-                    DECLARE @IdSala int = (SELECT TOP 1 id_sala FROM dbo.Chat_Salas WHERE nombre = 'Comunidad de Padres');
+                    DECLARE @IdSala int = (SELECT TOP 1 id_sala FROM EDI.Chat_Salas WHERE nombre = 'Comunidad de Padres');
                     IF @IdSala IS NOT NULL
                     BEGIN
-                        INSERT INTO dbo.Chat_Participantes (id_sala, id_usuario, es_admin)
+                        INSERT INTO EDI.Chat_Participantes (id_sala, id_usuario, es_admin)
                         VALUES (@IdSala, @idUsuario, 0); 
                     END
                 END
@@ -86,7 +86,7 @@ exports.searchUsers = async (req, res) => {
         u.matricula       AS Matricula,
         u.num_empleado    AS NumEmpleado,
         u.correo          AS E_mail
-      FROM dbo.Usuarios u
+      FROM EDI.Usuarios u
       WHERE u.tipo_usuario = @tipo
     `;
 
@@ -199,12 +199,12 @@ exports.updateEmail = async (req, res) => {
     }
 
     const dup = await queryP(`
-      SELECT 1 FROM dbo.Usuarios WHERE correo = @correo AND id_usuario <> @id
+      SELECT 1 FROM EDI.Usuarios WHERE correo = @correo AND id_usuario <> @id
     `, { correo: { type: sql.NVarChar, value: correo }, id: { type: sql.Int, value: id } });
     if (dup.length) return bad(res, 'El correo ya está en uso');
 
     const rows = await queryP(`
-      UPDATE dbo.Usuarios
+      UPDATE EDI.Usuarios
       SET correo = @correo, updated_at = GETDATE()
       OUTPUT INSERTED.id_usuario      AS IdUsuario,
              INSERTED.nombre          AS Nombre,

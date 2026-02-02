@@ -17,7 +17,7 @@ exports.create = async (req, res) => {
     if (!id_usuario || !id_cat_estado) return bad(res, 'id_usuario e id_cat_estado requeridos');
 
     // Obtener nombre del estado
-    const catalogo = await queryP('SELECT descripcion FROM dbo.Cat_Estados WHERE id_cat_estado = @id', { id: { type: sql.Int, value: id_cat_estado }});
+    const catalogo = await queryP('SELECT descripcion FROM EDI.Cat_Estados WHERE id_cat_estado = @id', { id: { type: sql.Int, value: id_cat_estado }});
     const nombreEstado = catalogo[0]?.descripcion || 'Desconocido';
 
     if (unico_vigente) {
