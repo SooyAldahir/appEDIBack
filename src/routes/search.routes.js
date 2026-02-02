@@ -10,21 +10,21 @@ router.get('/', async (req, res) => {
     const params = { q: `%${q}%` };
     const alumnos = await queryP(`
       SELECT id_usuario, nombre, apellido, tipo_usuario, matricula, num_empleado
-      FROM dbo.Usuarios
+      FROM EDI.Usuarios
       WHERE tipo_usuario = 'ALUMNO'
         AND (CAST(matricula AS NVARCHAR) LIKE @q OR nombre LIKE @q OR apellido LIKE @q)
     `, params);
 
     const empleados = await queryP(`
       SELECT id_usuario, nombre, apellido, tipo_usuario, matricula, num_empleado
-      FROM dbo.Usuarios
+      FROM EDI.Usuarios
       WHERE tipo_usuario = 'EMPLEADO'
         AND (CAST(num_empleado AS NVARCHAR) LIKE @q OR nombre LIKE @q OR apellido LIKE @q)
     `, params);
 
     const familias = await queryP(`
       SELECT id_familia, nombre_familia, residencia
-      FROM dbo.Familias_EDI
+      FROM EDI.Familias_EDI
       WHERE nombre_familia LIKE @q
     `, params);
 
